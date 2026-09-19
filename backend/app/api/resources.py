@@ -1,56 +1,27 @@
-from fastapi import APIRouter
-from typing import Optional
+from fastapi import APIRouter, Depends, Query
+from typing import Optional, List
+from app.core.security import get_current_user
+from app.agents.learning_agent import learning_agent
+from app.services.supabase_service import supabase_service
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 
 @router.get("/recommended")
-async def get_recommended_resources():
-    return [
-        {
-            "id": "res-1",
-            "title": "Build a Complete RAG App with LangChain (2024)",
-            "platform": "YouTube Video",
-            "creator": "codebasics",
-            "category": "AI / ML",
-            "tags": ["AI / LLMs", "RAG", "LangChain"],
-            "difficulty": "Intermediate",
-            "duration": "1h 12m",
-            "rating": 4.9
-        },
-        {
-            "id": "res-2",
-            "title": "FastAPI Full Course for Beginners",
-            "platform": "Course (free)",
-            "creator": "freeCodeCamp",
-            "category": "Backend",
-            "tags": ["Backend", "FastAPI", "APIs"],
-            "difficulty": "Beginner",
-            "duration": "3h 12m",
-            "rating": 4.9
-        }
-    ]
+async def get_recommended_resources(user: dict = Depends(get_current_user)):
+    """
+    Ranks learning resources dynamically according to the student's active roadmap milestone,
+    identified skill gaps, followed creators, and difficulty level.
+    """
+    user_id = user["id"]
+    return await learning_agent.get_recommended_resources(user_id)
 
 @router.get("")
-async def get_resources(category: Optional[str] = None):
-    return [
-        {
-            "id": "res-1",
-            "title": "Build a Complete RAG App with LangChain (2024)",
-            "platform": "YouTube Video",
-            "creator": "codebasics",
-            "category": "AI / ML",
-            "tags": ["AI / LLMs", "RAG", "LangChain"],
-            "difficulty": "Intermediate",
-            "duration": "1h 12m"
-        },
-        {
-            "id": "res-3",
-            "title": "Docker & Kubernetes in 2 Hours",
-            "platform": "YouTube Video",
-            "creator": "TechWorld with Nana",
-            "category": "DevOps",
-            "tags": ["DevOps", "Docker", "Kubernetes"],
-            "difficulty": "Beginner",
-            "duration": "2h 8m"
-        }
-    ]
+async def get_all_resources(
+    category: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    limit: int = Query(default=20, le=50)
+):
+    """
+    Retrieves the catalog of learning resources with optional filtering.
+    """
+    return await supabase_service.get_resources(category=category, difficulty=difficulty, limit=limit)

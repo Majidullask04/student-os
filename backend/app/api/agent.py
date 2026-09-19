@@ -1,62 +1,52 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from typing import Optional
 from app.schemas.agent import AnalyzeRequest, ChatRequest
 from app.core.security import get_current_user
-from app.services.gemini_service import gemini_service
-from app.services.supabase_service import supabase_service
-from app.db.database import db
+from app.agents.learning_agent import learning_agent
+from app.agents.context import build_student_context
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 @router.post("/analyze")
-async def analyze_gap(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
+async def analyze_student_profile(req: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
-    Analyzes student skill gaps and generates an adaptive learning roadmap using Gemini API.
+    Analyzes student skill gaps and generates an adaptive 7-stage learning roadmap.
+    Persists the roadmap to the database and records analysis into agent memory.
     """
-    result = await gemini_service.analyze_gap_and_generate_roadmap(
+    return await learning_agent.analyze_student_profile(
+        user_id=user["id"],
         goal=req.goal,
         skills=req.skills,
         time_commitment=req.timeCommitmentHours
     )
 
-    # Save to agent memory
-    await supabase_service.save_agent_memory(
-        user_id=user["id"],
-        role="system",
-        content=f"Generated roadmap for {req.goal} with {len(req.skills)} verified baseline skills.",
-        metadata={"goal": req.goal, "skills": req.skills}
-    )
-
-    return result
-
 @router.post("/chat")
-async def chat(req: ChatRequest, user: dict = Depends(get_current_user)):
+async def chat_with_agent(req: ChatRequest, user: dict = Depends(get_current_user)):
     """
-    Context-aware AI conversation with student memory and Gemini grounding.
+    Tool-aware AI conversation grounded in student roadmap, progress, and memory.
+    Inspects user intent, selects and executes agent tools, reasons, and returns structured advice.
     """
-    user_id = user["id"]
-    profile = db.profiles.get(user_id, {
-        "name": user.get("name", "Student"),
-        "goal": "AI Engineer",
-        "skills": ["Python", "FastAPI"]
-    })
-
-    # Retrieve recent conversational memory from Supabase
-    recent_memory = await supabase_service.get_recent_agent_memory(user_id)
-
-    # Call Gemini with student context
-    response = await gemini_service.chat_with_context(
-        message=req.message,
-        profile=profile,
-        roadmap_stage="Backend & APIs (In Progress)",
-        history=recent_memory
+    return await learning_agent.handle_student_chat(
+        user_id=user["id"],
+        message=req.message
     )
 
-    # Persist user message and AI response into agent_memory
-    await supabase_service.save_agent_memory(user_id, "user", req.message)
-    await supabase_service.save_agent_memory(user_id, "assistant", response["text"])
+@router.post("/resolve-conflicts")
+async def resolve_creator_conflicts(
+    debates: Optional[str] = None, 
+    user: dict = Depends(get_current_user)
+):
+    """
+    Resolves educational disputes between tech creators tailored to this student's context.
+    """
+    return await learning_agent.resolve_creator_conflicts(
+        user_id=user["id"],
+        creator_viewpoints=debates
+    )
 
-    return {
-        "sender": "assistant",
-        "text": response["text"],
-        "source": response.get("source", "gemini")
-    }
+@router.get("/context")
+async def get_agent_context(user: dict = Depends(get_current_user)):
+    """
+    Retrieves the complete, unified Student Context (single source of truth for agent).
+    """
+    return await build_student_context(user["id"])
