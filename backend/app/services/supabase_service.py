@@ -254,15 +254,22 @@ class SupabaseService:
 
         # Also mutate tasks in the current active roadmap
         roadmap = db.roadmaps.get(user_id)
+        active_milestone = "Learning"
+        module_percentage = 0
+        completed_task_obj = None
+
         if roadmap and "stages" in roadmap:
             total_tasks = 0
             completed_tasks = 0
-            for stage in roadmap["stages"]:
+            stages = roadmap["stages"]
+
+            for stage in stages:
                 stage_total = len(stage.get("tasks", []))
                 stage_completed = 0
                 for t in stage.get("tasks", []):
                     if t.get("id") == task_id:
                         t["completed"] = completed
+                        completed_task_obj = t
                     if t.get("completed", False):
                         stage_completed += 1
                         completed_tasks += 1
@@ -274,13 +281,43 @@ class SupabaseService:
                         stage["status"] = "Completed"
                     elif stage_completed > 0:
                         stage["status"] = "In Progress"
-            
+                    if completed_task_obj and any(t.get("id") == task_id for t in stage.get("tasks", [])):
+                        module_percentage = stage["percentage"]
+
+            # Automatically transition next milestone to In Progress when prior is completed
+            for i, stg in enumerate(stages):
+                if stg.get("status") == "Completed" and i + 1 < len(stages):
+                    if stages[i + 1].get("status") in ["Upcoming", "Next"]:
+                        stages[i + 1]["status"] = "In Progress"
+
+            # Determine currently active milestone
+            for stg in stages:
+                if stg.get("status") in ["In Progress", "Next"]:
+                    active_milestone = stg.get("title", "")
+                    break
+
             # Recalculate overall percentage
             if total_tasks > 0:
                 roadmap["overallPercentage"] = int((completed_tasks / total_tasks) * 100)
 
+            # If task completed is a project, register into projects table as verified evidence
+            if completed and completed_task_obj and completed_task_obj.get("type") == "Project":
+                user_projs = db.projects.get(user_id, [])
+                if not any(p.get("title") == completed_task_obj.get("title") for p in user_projs):
+                    user_projs.append({
+                        "id": f"proj-{len(user_projs)+1}",
+                        "title": completed_task_obj.get("title"),
+                        "description": f"Verified project completed from roadmap: {active_milestone}",
+                        "tech_stack": ["Python", "AI", "FastAPI"],
+                        "status": "Completed"
+                    })
+                    db.projects[user_id] = user_projs
+
         if self.is_connected():
             try:
+                # Update task in Supabase
+                self.client.table("roadmap_tasks").update({"completed": completed}).eq("id", task_id).execute()
+                # Audit into progress_history
                 self.client.table("progress_history").insert({
                     "user_id": user_id,
                     "task_id": task_id,
@@ -289,7 +326,13 @@ class SupabaseService:
             except Exception as e:
                 print(f"[Supabase] save_progress error: {e}")
 
-        return {"taskId": task_id, "completed": completed}
+        return {
+            "taskId": task_id,
+            "completed": completed,
+            "modulePercentage": module_percentage,
+            "overallPercentage": roadmap.get("overallPercentage", 0) if roadmap else 0,
+            "activeMilestone": active_milestone
+        }
 
     # =========================================================================
     # 7. Projects
