@@ -126,12 +126,30 @@ class LearningAgent:
             tool_data = conf.get("data", {})
             suggested_action = "Review personalized creator sequence recommendation"
 
-        elif "job" in lower or "apply" in lower or "fit" in lower:
-            # Call job search & fit tool
-            fit = await analyze_job_fit(user_id, "job-1")
-            job_reasoning = await self.gemini.analyze_job_fit_with_reasoning(fit, context)
-            tool_data = job_reasoning.get("data", {})
-            suggested_action = f"Target missing skills: {', '.join(fit.get('missingSkills', [])[:2])}"
+        elif "interview" in lower:
+            from app.agents.job_search_agent import job_search_agent
+            prep = await job_search_agent.generate_interview_prep(user_id, "job-1")
+            tool_data = prep
+            suggested_action = "Review technical questions and STAR story outline for upcoming interviews"
+
+        elif "tailor" in lower or "cover letter" in lower or "pitch" in lower:
+            from app.agents.job_search_agent import job_search_agent
+            kit = await job_search_agent.generate_application_kit(user_id, "job-1")
+            tool_data = kit
+            suggested_action = "Review tailored CV bullets and cover pitch"
+
+        elif "job" in lower or "apply" in lower or "fit" in lower or "hiring" in lower:
+            from app.agents.job_search_agent import job_search_agent
+            jobs = await job_search_agent.search_and_rank_jobs(user_id, limit=3)
+            top_job = jobs[0] if jobs else {}
+            tool_data = {
+                "topMatches": [
+                    {"title": j.get("title"), "company": j.get("company"), "matchScore": j.get("matchScore"), "verdict": j.get("verdict")}
+                    for j in jobs
+                ],
+                "recommendedJob": top_job
+            }
+            suggested_action = f"Apply to {top_job.get('title')} at {top_job.get('company')} ({top_job.get('matchScore')}% match)"
 
         elif "resource" in lower or "tutorial" in lower:
             resources = await search_resources(user_id, topic="RAG")

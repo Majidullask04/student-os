@@ -2,10 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from app.schemas.agent import JobAnalyzeRequest
 from app.core.security import get_current_user
-from app.services.supabase_service import supabase_service
-from app.services.gemini_service import gemini_service
-from app.agents.context import build_student_context
-from app.agents.tools import analyze_job_fit
+from app.agents.job_search_agent import job_search_agent
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -16,42 +13,39 @@ async def get_jobs(
     user: dict = Depends(get_current_user)
 ):
     """
-    Returns jobs list with dynamically calculated match scores based on student's verified skills.
+    Returns a ranked shortlist of tech jobs evaluated against the student's background
+    using the 5-Dimensional Fit Scoring Framework (Technical, Experience, Career, Culture, Location).
     """
-    jobs = await supabase_service.get_jobs(query=query, limit=limit)
-    skills_raw = await supabase_service.get_skills(user["id"])
-    student_skills = set(s.get("name", "").lower() for s in skills_raw)
-
-    profile = await supabase_service.get_profile(user["id"]) or {}
-    for s in profile.get("skills", []):
-        student_skills.add(s.lower())
-
-    # Dynamically annotate each job with true match score
-    enriched = []
-    for j in jobs:
-        req_skills = j.get("skills_required", [])
-        matched = [s for s in req_skills if s.lower() in student_skills]
-        missing = [s for s in req_skills if s.lower() not in student_skills]
-        score = int((len(matched) / max(1, len(req_skills))) * 100) if req_skills else 50
-        enriched.append({
-            **j,
-            "matchScore": score,
-            "skillsMatched": matched,
-            "skillsToImprove": missing
-        })
-
-    enriched.sort(key=lambda x: x["matchScore"], reverse=True)
-    return enriched
+    user_id = user["id"]
+    return await job_search_agent.search_and_rank_jobs(user_id=user_id, query=query, limit=limit)
 
 @router.post("/analyze")
 async def analyze_job(req: JobAnalyzeRequest, user: dict = Depends(get_current_user)):
     """
-    Performs deterministic skill intersection and enriches with Gemini AI Career Coach recommendations.
+    Performs comprehensive 5D fit analysis on a specific job posting against verified student context.
     """
     user_id = user["id"]
-    fit_data = await analyze_job_fit(user_id, req.jobId)
-    context = await build_student_context(user_id)
+    jobs = await job_search_agent.search_and_rank_jobs(user_id=user_id, limit=20)
+    job = next((j for j in jobs if j.get("id") == req.jobId), None)
+    if not job:
+        job = {"id": req.jobId, "title": "AI Engineer", "company": "Tech Company", "skills_required": ["Python", "FastAPI", "RAG"]}
+    
+    return job
 
-    # Gemini explains the deterministic score and provides portfolio recommendations
-    reasoning_res = await gemini_service.analyze_job_fit_with_reasoning(fit_data, context)
-    return reasoning_res.get("data", fit_data)
+@router.post("/tailor")
+async def tailor_application(req: JobAnalyzeRequest, user: dict = Depends(get_current_user)):
+    """
+    Generates a tailored application kit (CV bullets, forward-looking cover letter/pitch,
+    and ATS keyword checklist) grounded in the student's verified projects and roadmap evidence.
+    """
+    user_id = user["id"]
+    return await job_search_agent.generate_application_kit(user_id=user_id, job_id=req.jobId)
+
+@router.post("/interview-prep")
+async def generate_interview_prep(req: JobAnalyzeRequest, user: dict = Depends(get_current_user)):
+    """
+    Generates tailored interview preparation including technical deep dive questions,
+    STAR-framework behavioral responses using the student's projects, and strategic questions for the employer.
+    """
+    user_id = user["id"]
+    return await job_search_agent.generate_interview_prep(user_id=user_id, job_id=req.jobId)

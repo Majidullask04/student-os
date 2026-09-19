@@ -14,7 +14,8 @@ import {
   BrainCircuit, 
   ArrowRight,
   TrendingUp,
-  Check
+  Check,
+  Copy
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Job } from '../types';
@@ -27,6 +28,11 @@ export const Career: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [analyzingJobId, setAnalyzingJobId] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
+  const [tailorResult, setTailorResult] = useState<any>(null);
+  const [interviewJobId, setInterviewJobId] = useState<string | null>(null);
+  const [interviewPrepResult, setInterviewPrepResult] = useState<any>(null);
+  const [copiedCoverLetter, setCopiedCoverLetter] = useState(false);
   const [generatingActionPlan, setGeneratingActionPlan] = useState(false);
   const [actionPlanGenerated, setActionPlanGenerated] = useState(false);
 
@@ -42,6 +48,32 @@ export const Career: React.FC = () => {
     } finally {
       setAnalyzingJobId(null);
     }
+  };
+
+  const handleTailorApplication = async (jobId: string) => {
+    setTailoringJobId(jobId);
+    try {
+      const result = await api.tailorApplication(jobId);
+      setTailorResult(result);
+    } finally {
+      setTailoringJobId(null);
+    }
+  };
+
+  const handlePrepareInterview = async (jobId: string) => {
+    setInterviewJobId(jobId);
+    try {
+      const result = await api.prepareInterview(jobId);
+      setInterviewPrepResult(result);
+    } finally {
+      setInterviewJobId(null);
+    }
+  };
+
+  const handleCopyCoverLetter = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCoverLetter(true);
+    setTimeout(() => setCopiedCoverLetter(false), 2000);
   };
 
   const handleGenerateActionPlan = async () => {
@@ -226,18 +258,31 @@ export const Career: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <button
-                    onClick={() => handleAnalyzeJob(job.id)}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5"
-                  >
-                    <BrainCircuit className="w-3.5 h-3.5" />
-                    <span>{analyzingJobId === job.id ? 'Analyzing...' : 'AI Gap Analysis'}</span>
-                  </button>
+                <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleAnalyzeJob(job.id)}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50/70 hover:bg-indigo-50 rounded-xl transition"
+                    >
+                      <BrainCircuit className="w-3.5 h-3.5" />
+                      <span>{analyzingJobId === job.id ? 'Evaluating 5D Fit...' : '5D Fit Analysis'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleTailorApplication(job.id)}
+                      className="text-xs font-semibold text-purple-700 hover:text-purple-800 flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-50/70 hover:bg-purple-50 rounded-xl transition"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>{tailoringJobId === job.id ? 'Tailoring CV...' : 'Tailor Application'}</span>
+                    </button>
+                  </div>
 
                   <div className="flex items-center gap-2">
-                    <button className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition">
-                      Prepare Interview
+                    <button
+                      onClick={() => handlePrepareInterview(job.id)}
+                      className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+                    >
+                      <span>{interviewJobId === job.id ? 'Generating...' : 'Prepare Interview'}</span>
                     </button>
                     <a
                       href={job.applyUrl}
@@ -251,17 +296,173 @@ export const Career: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Inline Gap Analysis Result Modal */}
+                {/* 5D Fit Analysis Result Drawer */}
                 {analysisResult && analysisResult.jobId === job.id && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200 text-xs space-y-2 animate-in fade-in">
+                  <div className="mt-3 p-4 rounded-xl bg-indigo-50/90 border border-indigo-200 text-xs space-y-3 animate-in fade-in">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-indigo-900 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                        AI Agent Fit Recommendation
-                      </span>
-                      <button onClick={() => setAnalysisResult(null)} className="text-slate-400 hover:text-slate-600 font-mono">×</button>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-indigo-600" />
+                        <span className="font-bold text-indigo-950 text-sm">
+                          5-Dimensional Fit Evaluation ({analysisResult.matchScore || analysisResult.overallScore}%)
+                        </span>
+                        {analysisResult.verdictBadge && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                            {analysisResult.verdictBadge}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => setAnalysisResult(null)} className="text-slate-400 hover:text-slate-600 font-mono text-sm">✕</button>
                     </div>
-                    <p className="text-indigo-800 leading-relaxed">{analysisResult.recommendation}</p>
+
+                    {/* 5D Dimension Grid */}
+                    {analysisResult.scores && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                        <div className="p-2 rounded-lg bg-white/80 border border-indigo-100">
+                          <span className="text-[10px] text-slate-500 block">Technical (30%)</span>
+                          <span className="text-sm font-black text-indigo-600">{analysisResult.scores.technical}%</span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/80 border border-indigo-100">
+                          <span className="text-[10px] text-slate-500 block">Projects (25%)</span>
+                          <span className="text-sm font-black text-indigo-600">{analysisResult.scores.experience}%</span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/80 border border-indigo-100">
+                          <span className="text-[10px] text-slate-500 block">Career Goal (30%)</span>
+                          <span className="text-sm font-black text-indigo-600">{analysisResult.scores.careerAlignment}%</span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/80 border border-indigo-100">
+                          <span className="text-[10px] text-slate-500 block">Culture (15%)</span>
+                          <span className="text-sm font-black text-indigo-600">{analysisResult.scores.behavioral}%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Location Gate & Project Evidence */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                      {analysisResult.locationGate && (
+                        <span className={`px-2 py-0.5 rounded-md font-semibold ${
+                          analysisResult.locationGate === 'PASS' 
+                            ? 'bg-emerald-100 text-emerald-800' 
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          Location Gate: {analysisResult.locationGate} ({analysisResult.locationNote || 'Eligible'})
+                        </span>
+                      )}
+                      {analysisResult.projectsAsEvidence && analysisResult.projectsAsEvidence.length > 0 && (
+                        <span className="text-slate-600">
+                          <strong>Verified Evidence:</strong> {analysisResult.projectsAsEvidence.join(', ')}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-indigo-900 leading-relaxed pt-1 border-t border-indigo-200/60">
+                      {analysisResult.recommendation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Tailored Application Kit Drawer (/apply) */}
+                {tailorResult && tailorResult.jobId === job.id && (
+                  <div className="mt-3 p-4 rounded-xl bg-purple-50/90 border border-purple-200 text-xs space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-purple-600" />
+                        <span className="font-bold text-purple-950 text-sm">
+                          Tailored Application Kit ({tailorResult.company})
+                        </span>
+                        {tailorResult.atsAnalysis && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                            ATS Score: {tailorResult.atsAnalysis.atsReadinessScore}%
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => setTailorResult(null)} className="text-slate-400 hover:text-slate-600 font-mono text-sm">✕</button>
+                    </div>
+
+                    {/* Tailored CV Bullets */}
+                    {tailorResult.tailoredCvBullets && (
+                      <div className="space-y-1.5 bg-white/80 p-3 rounded-lg border border-purple-100">
+                        <span className="text-[11px] font-bold text-purple-950 block">Tailored CV Experience Bullets:</span>
+                        {tailorResult.tailoredCvBullets.map((bullet: string, idx: number) => (
+                          <p key={idx} className="text-slate-700 leading-relaxed font-mono text-[11px]">{bullet}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Cover Pitch with Copy */}
+                    {tailorResult.tailoredCoverLetter && (
+                      <div className="space-y-1.5 bg-white/80 p-3 rounded-lg border border-purple-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-purple-950">Tailored Cover Pitch:</span>
+                          <button
+                            onClick={() => handleCopyCoverLetter(tailorResult.tailoredCoverLetter)}
+                            className="flex items-center gap-1 text-[10px] font-semibold text-purple-700 hover:text-purple-900 bg-purple-100/70 px-2 py-0.5 rounded-md"
+                          >
+                            {copiedCoverLetter ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedCoverLetter ? 'Copied!' : 'Copy Letter'}</span>
+                          </button>
+                        </div>
+                        <p className="text-slate-700 whitespace-pre-line leading-relaxed text-[11px] max-h-36 overflow-y-auto">
+                          {tailorResult.tailoredCoverLetter}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Interview Preparation Drawer (/interview) */}
+                {interviewPrepResult && interviewPrepResult.jobId === job.id && (
+                  <div className="mt-3 p-4 rounded-xl bg-amber-50/90 border border-amber-200 text-xs space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BrainCircuit className="w-4 h-4 text-amber-600" />
+                        <span className="font-bold text-amber-950 text-sm">
+                          Interview Preparation ({interviewPrepResult.company})
+                        </span>
+                      </div>
+                      <button onClick={() => setInterviewPrepResult(null)} className="text-slate-400 hover:text-slate-600 font-mono text-sm">✕</button>
+                    </div>
+
+                    {/* Technical Deep Dives */}
+                    {interviewPrepResult.technicalDeepDives && (
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-bold text-amber-950 block">Technical Deep Dives & Strategies:</span>
+                        {interviewPrepResult.technicalDeepDives.map((t: any, idx: number) => (
+                          <div key={idx} className="p-2.5 rounded-lg bg-white/80 border border-amber-100 space-y-1">
+                            <p className="font-bold text-slate-900">{t.topic}: {t.question}</p>
+                            <p className="text-slate-600 text-[11px] leading-relaxed">
+                              <strong className="text-amber-800">Strategy:</strong> {t.sampleAnswerStrategy}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* STAR Behavioral Questions */}
+                    {interviewPrepResult.behavioralStarQuestions && (
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-bold text-amber-950 block">STAR Behavioral Outline:</span>
+                        {interviewPrepResult.behavioralStarQuestions.map((b: any, idx: number) => (
+                          <div key={idx} className="p-2.5 rounded-lg bg-white/80 border border-amber-100 space-y-1">
+                            <p className="font-bold text-slate-900">{b.question}</p>
+                            <p className="text-slate-600 text-[11px] leading-relaxed">
+                              <strong className="text-amber-800">Your Project Story:</strong> {b.recommendedStory}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Smart Questions for the Candidate to Ask */}
+                    {interviewPrepResult.smartQuestionsToAsk && (
+                      <div className="p-2.5 rounded-lg bg-white/80 border border-amber-100 space-y-1">
+                        <span className="text-[11px] font-bold text-amber-950 block">Smart Questions to Ask Interviewer:</span>
+                        <ul className="list-disc list-inside text-slate-700 text-[11px] space-y-0.5">
+                          {interviewPrepResult.smartQuestionsToAsk.map((q: string, idx: number) => (
+                            <li key={idx}>{q}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -428,6 +428,63 @@ export const api = {
     );
   },
 
+  async tailorApplication(jobId: string) {
+    return fetchWithFallback(
+      '/jobs/tailor',
+      { method: 'POST', body: JSON.stringify({ jobId }) },
+      () => ({
+        jobTitle: 'Junior AI Engineer',
+        company: 'Cognitive Scale AI',
+        matchScore: 83,
+        tailoredCvBullets: [
+          '• Engineered FastAPI Microservice with JWT Auth using Python, FastAPI, PostgreSQL, Docker; implemented structured API contracts aligned with production standards.',
+          '• Built CLI Document Summarizer with Gemini API and local caching; accelerated text summarization throughput.'
+        ],
+        tailoredCoverLetter: 'Dear Hiring Team at Cognitive Scale AI,\n\nI am writing to express my strong interest in the Junior AI Engineer role. As an aspiring AI Engineer with hands-on experience building FastAPI microservices and LLM document processing pipelines, I am eager to contribute to your engineering team...',
+        atsAnalysis: {
+          atsReadinessScore: 88,
+          matchedKeywords: ['Python', 'FastAPI', 'Docker', 'PostgreSQL'],
+          missingKeywords: ['RAG', 'Vector Databases'],
+          recommendation: 'Highlight your asynchronous API design and schema validation projects in your summary.'
+        }
+      })
+    );
+  },
+
+  async prepareInterview(jobId: string) {
+    return fetchWithFallback(
+      '/jobs/interview-prep',
+      { method: 'POST', body: JSON.stringify({ jobId }) },
+      () => ({
+        jobTitle: 'Junior AI Engineer',
+        company: 'Cognitive Scale AI',
+        matchScore: 83,
+        technicalDeepDives: [
+          {
+            topic: 'Vector Search & RAG Latency',
+            question: 'How do you handle vector search latency and chunking strategies when building RAG pipelines?',
+            sampleAnswerStrategy: 'Explain chunking tradeoffs (256 vs 512 tokens with 10% overlap), approximate nearest neighbors (HNSW), and caching frequent query embeddings.'
+          },
+          {
+            topic: 'FastAPI Concurrency',
+            question: 'How does FastAPI handle asynchronous requests with async def vs regular def routes with database calls?',
+            sampleAnswerStrategy: 'Clarify threadpool delegation for blocking sync def vs native event-loop execution for async def.'
+          }
+        ],
+        behavioralStarQuestions: [
+          {
+            question: 'Tell me about a time you solved a difficult backend architectural bug.',
+            recommendedStory: 'Discuss building FastAPI Microservice with JWT Auth. Situation: async database queries were blocking. Task: optimize connection pooling. Action: configured async SQLAlchemy engine. Result: 60% latency reduction.'
+          }
+        ],
+        smartQuestionsToAsk: [
+          'What does the current LLM evaluation and regression testing pipeline look like at Cognitive Scale AI?',
+          'How do you balance latency vs model accuracy in production agent workflows?'
+        ]
+      })
+    );
+  },
+
   // Community
   async getCommunityPosts(): Promise<CommunityPost[]> {
     return getLocalItem<CommunityPost[]>(STORAGE_KEYS.COMMUNITY, mockCommunityPosts);

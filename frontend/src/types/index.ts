@@ -168,6 +168,21 @@ export interface Job {
   skillsToImprove: string[];
   description: string;
   applyUrl: string;
+  canonicalKey?: string;
+  fitEvaluation?: {
+    overallScore: number;
+    verdict: string;
+    verdictBadge: string;
+    scores: {
+      technical: number;
+      experience: number;
+      careerAlignment: number;
+      behavioral: number;
+    };
+    locationGate: string;
+    locationNote: string;
+    projectsAsEvidence?: string[];
+  };
 }
 
 export interface ChatMessage {
