@@ -11,11 +11,13 @@ Inspired by and adapted from the MadsLorentzen/ai-job-search architecture:
 import re
 import hashlib
 import json
+import uuid
 from typing import Dict, Any, List, Optional
 import httpx
 from app.services.supabase_service import supabase_service
 from app.services.gemini_service import gemini_service
 from app.agents.context import build_student_context
+from app.agents.memory import memory_manager
 from app.db.database import db
 
 # =============================================================================
@@ -392,6 +394,112 @@ Best regards,
             "technicalDeepDives": technical_questions,
             "behavioralStarQuestions": behavioral_questions,
             "smartQuestionsToAsk": smart_questions
+        }
+
+    async def parse_jd_and_adapt(
+        self,
+        user_id: str,
+        raw_jd: str,
+        job_title: Optional[str] = None,
+        company: Optional[str] = None,
+        auto_inject_roadmap: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Parses raw job description text, extracts stack requirements, evaluates 5D fit,
+        and dynamically injects an adaptive Sprint milestone into the student's active roadmap.
+        """
+        import re
+        context = await build_student_context(user_id)
+        
+        # 1. Extract title and company if not passed
+        inferred_title = job_title
+        inferred_company = company or "Target Company"
+
+        if not inferred_title:
+            title_match = re.search(r'(?:role|position|title|looking for an?)\s*[:\-]?\s*([A-Za-z\s]{3,35}(?:engineer|developer|scientist|architect|intern|specialist))', raw_jd, re.IGNORECASE)
+            inferred_title = title_match.group(1).strip() if title_match else "AI / Software Engineer"
+
+        # 2. Extract technical skills from raw JD text
+        KNOWN_SKILLS = [
+            "Python", "FastAPI", "Django", "Flask", "PyTorch", "TensorFlow", "LangChain", 
+            "LlamaIndex", "RAG", "Vector Databases", "ChromaDB", "Pinecone", "Weaviate",
+            "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "AWS", "GCP", "Azure",
+            "React", "Next.js", "TypeScript", "JavaScript", "GraphQL", "REST APIs", 
+            "CI/CD", "Git", "SQL", "Tailwind CSS", "LLMs", "NLP", "Machine Learning"
+        ]
+        
+        extracted_skills = []
+        for s in KNOWN_SKILLS:
+            pattern = r'\b' + re.escape(s) + r'\b'
+            if re.search(pattern, raw_jd, re.IGNORECASE):
+                extracted_skills.append(s)
+
+        if not extracted_skills:
+            extracted_skills = ["Python", "FastAPI", "RAG", "Docker"]
+
+        # 3. Construct job representation & run 5D fit evaluation
+        canonical_key = generate_job_key(inferred_company, inferred_title)
+        temp_job = {
+            "id": f"pasted-{canonical_key}",
+            "title": inferred_title,
+            "company": inferred_company,
+            "location": "Remote" if "remote" in raw_jd.lower() else "Hybrid / Flexible",
+            "skills_required": extracted_skills,
+            "description": raw_jd[:300] + "..."
+        }
+
+        fit_eval = self.evaluate_5d_fit(context, temp_job)
+
+        # 4. Adaptive Roadmap Injection
+        adapted_milestone = None
+        if auto_inject_roadmap and fit_eval["missingSkills"]:
+            missing = fit_eval["missingSkills"]
+            milestone_title = f"Sprint: {inferred_title} @ {inferred_company}"
+            milestone_desc = f"Targeted preparation sprint addressing specific requirements: {', '.join(missing)}."
+            milestone_tasks = [
+                {
+                    "id": f"task-jd-{uuid.uuid4().hex[:6]}",
+                    "title": f"Master {skill} for {inferred_company} requirements",
+                    "type": "Theory",
+                    "estimatedHours": 2.0
+                }
+                for skill in missing
+            ]
+            milestone_tasks.append({
+                "id": f"task-jd-proj-{uuid.uuid4().hex[:6]}",
+                "title": f"Build portfolio proof-of-concept integrating {missing[0]}",
+                "type": "Project",
+                "estimatedHours": 4.0
+            })
+
+            adapted_milestone = await supabase_service.inject_adaptive_milestone(
+                user_id=user_id,
+                title=milestone_title,
+                description=milestone_desc,
+                tasks=milestone_tasks,
+                why_this_step=f"Identified direct skill gaps for {inferred_title} at {inferred_company}. Closing these increases match to 90%+.",
+                reason="Job Description Skill Gap"
+            )
+
+            # Store in agent memory
+            await memory_manager.save_interaction(
+                user_id=user_id,
+                role="system",
+                content=f"Parsed JD for '{inferred_title}' at '{inferred_company}'. Fit Score: {fit_eval['overallScore']}%. Injected adaptive sprint with tasks for {', '.join(missing)}.",
+                metadata={"fitScore": fit_eval["overallScore"], "missing": missing, "adapted": True}
+            )
+
+        return {
+            "canonicalKey": canonical_key,
+            "inferredTitle": inferred_title,
+            "inferredCompany": inferred_company,
+            "extractedSkills": extracted_skills,
+            "fitEvaluation": fit_eval,
+            "matchScore": fit_eval["overallScore"],
+            "matchedSkills": fit_eval["matchedSkills"],
+            "missingSkills": fit_eval["missingSkills"],
+            "roadmapAdapted": adapted_milestone is not None,
+            "adaptedMilestone": adapted_milestone
         }
 
 job_search_agent = JobSearchAgent()

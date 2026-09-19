@@ -23,10 +23,11 @@ async def analyze_student_profile(req: AnalyzeRequest, user: dict = Depends(get_
 @router.post("/chat")
 async def chat_with_agent(req: ChatRequest, user: dict = Depends(get_current_user)):
     """
-    Tool-aware AI conversation grounded in student roadmap, progress, and memory.
-    Inspects user intent, selects and executes agent tools, reasons, and returns structured advice.
+    Intelligent multi-agent conversation routing between LearningAgent,
+    JobSearchAgent, AssessmentAgent, and ProjectAgent.
     """
-    return await learning_agent.handle_student_chat(
+    from app.agents.orchestrator import orchestrator
+    return await orchestrator.route_and_execute(
         user_id=user["id"],
         message=req.message
     )

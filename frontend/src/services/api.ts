@@ -485,6 +485,113 @@ export const api = {
     );
   },
 
+  async parseJdAndAdapt(rawJd: string, jobTitle?: string, company?: string) {
+    return fetchWithFallback(
+      '/jobs/parse-jd-and-adapt',
+      { method: 'POST', body: JSON.stringify({ rawJd, jobTitle, company, autoInjectRoadmap: true }) },
+      () => ({
+        inferredTitle: jobTitle || 'AI Infrastructure Engineer',
+        inferredCompany: company || 'Pasted Job Posting',
+        extractedSkills: ['Python', 'FastAPI', 'RAG', 'Vector Databases', 'Docker'],
+        matchScore: 68,
+        matchedSkills: ['Python', 'FastAPI', 'Docker'],
+        missingSkills: ['RAG', 'Vector Databases'],
+        roadmapAdapted: true,
+        adaptedMilestone: {
+          title: `Sprint: ${jobTitle || 'AI Engineer'} Preparation`,
+          tasks: [
+            { id: 'task-adapt-1', title: 'Master RAG Fundamentals', completed: false },
+            { id: 'task-adapt-2', title: 'Deploy Vector Indexing Proof-of-Concept', completed: false }
+          ]
+        }
+      })
+    );
+  },
+
+  // Assessments & Adaptive Loop
+  async generateAssessment(topic?: string, difficulty: string = 'Intermediate') {
+    return fetchWithFallback(
+      '/assessment/generate',
+      { method: 'POST', body: JSON.stringify({ topic, difficulty }) },
+      () => ({
+        assessmentId: 'eval-demo',
+        topic: topic || 'RAG & Vector Search',
+        difficulty,
+        totalQuestions: 3,
+        questions: [
+          {
+            id: 'rag-q1',
+            question: 'What is the primary tradeoff when using HNSW indexing in vector databases?',
+            options: [
+                'A) High search speed and recall at the cost of higher memory (RAM) consumption',
+                'B) Zero RAM usage with very high query latency',
+                'C) Guarantees exact linear brute-force nearest neighbor distance',
+                'D) Only supports scalar integers, not floating-point embeddings'
+            ],
+            concept: 'HNSW Vector Indexing'
+          },
+          {
+            id: 'rag-q2',
+            question: 'Why is document chunking with a sliding window (10-15% overlap) critical in RAG?',
+            options: [
+                'A) It prevents the embedding model from generating floats',
+                'B) It preserves contextual continuity across chunk boundaries',
+                'C) It encrypts documents against extraction',
+                'D) It eliminates the need for an embedding model'
+            ],
+            concept: 'Chunking & Context Preservation'
+          }
+        ]
+      })
+    );
+  },
+
+  async submitAssessment(topic: string, answers: Record<string, number>) {
+    return fetchWithFallback(
+      '/assessment/submit',
+      { method: 'POST', body: JSON.stringify({ topic, answers }) },
+      () => {
+        const correctCount = Object.keys(answers).length >= 2 ? 2 : 1;
+        const passed = correctCount >= 2;
+        return {
+          topic,
+          score: passed ? 85 : 50,
+          passed,
+          verdict: passed ? 'Mastery Demonstrated! 🎉' : 'Skill Gap Detected — Roadmap Adapted ⚡',
+          masteredConcepts: passed ? ['Chunking', 'Vector Indexing'] : ['Chunking'],
+          identifiedGaps: passed ? [] : ['HNSW Vector Indexing'],
+          roadmapAdapted: !passed,
+          remediationStage: !passed ? {
+            title: `Adaptive Deep-Dive: ${topic} Remediation`,
+            tasks: [{ title: 'Study Core Concepts: HNSW Vector Indexing', estimatedHours: 1.5 }]
+          } : null
+        };
+      }
+    );
+  },
+
+  // Project Agent
+  async generateProjectBlueprint(topic?: string, difficulty: string = 'Intermediate') {
+    return fetchWithFallback(
+      '/projects/generate',
+      { method: 'POST', body: JSON.stringify({ topic, difficulty }) },
+      () => ({
+        id: 'proj-demo-' + Date.now(),
+        title: 'Autonomous RAG Knowledge Assistant with Hybrid Search',
+        description: 'Production-grade retrieval augmented generation microservice with semantic vector search and citation guardrails.',
+        techStack: ['Python', 'FastAPI', 'ChromaDB', 'Gemini API', 'Docker'],
+        status: 'In Progress',
+        progress: 0,
+        milestones: [
+          { step: 1, title: 'Document Pipeline & Chunking', tasks: ['Implement recursive token chunker (512 tokens)'] },
+          { step: 2, title: 'Vector Embeddings & HNSW Indexing', tasks: ['Persist vectors into ChromaDB collection'] },
+          { step: 3, title: 'FastAPI Query & Grounding Route', tasks: ['Build /query endpoint with hybrid similarity filtering'] }
+        ],
+        starterBoilerplate: 'from fastapi import FastAPI\napp = FastAPI()\n'
+      })
+    );
+  },
+
   // Community
   async getCommunityPosts(): Promise<CommunityPost[]> {
     return getLocalItem<CommunityPost[]>(STORAGE_KEYS.COMMUNITY, mockCommunityPosts);

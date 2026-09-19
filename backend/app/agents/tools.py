@@ -100,6 +100,24 @@ async def analyze_job_fit(user_id: str, job_id: str) -> Dict[str, Any]:
     }
 
 # =============================================================================
+# 5. Knowledge RAG & Adaptive Tools
+# =============================================================================
+async def search_knowledge(query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    """Retrieves verified technical explanations, creator advice, and architecture notes."""
+    from app.agents.rag_service import rag_service
+    return rag_service.search_knowledge(query=query, top_k=top_k)
+
+async def generate_project_plan(user_id: str, topic: Optional[str] = None) -> Dict[str, Any]:
+    """Generates a structured portfolio project blueprint grounded in student skill gaps."""
+    from app.agents.project_agent import project_agent
+    return await project_agent.generate_project_blueprint(user_id=user_id, topic_or_gap=topic)
+
+async def generate_diagnostic_assessment(user_id: str, topic: Optional[str] = None) -> Dict[str, Any]:
+    """Generates a diagnostic quiz targeting current milestone or topic."""
+    from app.agents.assessment_agent import assessment_agent
+    return await assessment_agent.generate_assessment(user_id=user_id, topic=topic)
+
+# =============================================================================
 # Tool Registry Map for the Agent
 # =============================================================================
 TOOL_REGISTRY = {
@@ -113,5 +131,8 @@ TOOL_REGISTRY = {
     "update_roadmap_progress": update_roadmap_progress,
     "save_agent_memory": save_agent_memory,
     "search_jobs": search_jobs,
-    "analyze_job_fit": analyze_job_fit
+    "analyze_job_fit": analyze_job_fit,
+    "search_knowledge": search_knowledge,
+    "generate_project_plan": generate_project_plan,
+    "generate_diagnostic_assessment": generate_diagnostic_assessment
 }

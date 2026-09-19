@@ -49,3 +49,26 @@ async def generate_interview_prep(req: JobAnalyzeRequest, user: dict = Depends(g
     """
     user_id = user["id"]
     return await job_search_agent.generate_interview_prep(user_id=user_id, job_id=req.jobId)
+
+@router.post("/parse-jd-and-adapt")
+async def parse_jd_and_adapt_endpoint(
+    payload: dict,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Parses pasted JD text, extracts required technologies, computes 5D fit score,
+    and dynamically adapts the active roadmap with targeted remediation tasks.
+    """
+    user_id = user["id"]
+    raw_jd = payload.get("rawJd", "")
+    job_title = payload.get("jobTitle")
+    company = payload.get("company")
+    auto_inject = payload.get("autoInjectRoadmap", True)
+
+    return await job_search_agent.parse_jd_and_adapt(
+        user_id=user_id,
+        raw_jd=raw_jd,
+        job_title=job_title,
+        company=company,
+        auto_inject_roadmap=auto_inject
+    )

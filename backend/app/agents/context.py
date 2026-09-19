@@ -27,15 +27,22 @@ async def build_student_context(user_id: str) -> Dict[str, Any]:
     if not skills_raw and "skills" in profile:
         skills = [{"name": s, "level": 3, "proficiency": 70, "category": "General"} for s in profile.get("skills", [])]
     else:
-        skills = [
-            {
+        def _parse_skill(s):
+            prof = s.get("proficiency", 50)
+            if isinstance(prof, (int, float)):
+                lvl = s.get("level", max(1, int(prof) // 25))
+                p_num = int(prof)
+            else:
+                lvl = s.get("level", 4 if str(prof).lower() in ["verified", "expert", "advanced"] else 2)
+                p_num = 85 if lvl >= 4 else 60
+            return {
                 "name": s.get("name"),
-                "level": s.get("level", max(1, s.get("proficiency", 50) // 25)),
-                "proficiency": s.get("proficiency", 50),
+                "level": lvl,
+                "proficiency": p_num,
                 "category": s.get("category", "General")
             }
-            for s in skills_raw
-        ]
+
+        skills = [_parse_skill(s) for s in skills_raw]
 
     # 3. Fetch Projects (Hands-on evidence)
     projects = await supabase_service.get_projects(user_id)

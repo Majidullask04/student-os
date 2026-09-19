@@ -233,6 +233,55 @@ class SupabaseService:
 
         return roadmap_obj
 
+    async def inject_adaptive_milestone(
+        self,
+        user_id: str,
+        title: str,
+        description: str,
+        tasks: List[Dict[str, Any]],
+        why_this_step: str,
+        reason: str = "Skill Gap Remediation"
+    ) -> Dict[str, Any]:
+        """
+        Dynamically adapts the student's active roadmap by inserting a tailored milestone/stage.
+        """
+        roadmap = await self.get_current_roadmap(user_id)
+        if not roadmap:
+            roadmap = await self.save_roadmap(
+                user_id=user_id,
+                goal="AI Engineer",
+                stages=[],
+                overall_percentage=0
+            )
+
+        stages = roadmap.get("stages", [])
+        new_stage_num = len(stages) + 1
+
+        new_stage = {
+            "stageNumber": new_stage_num,
+            "title": title,
+            "status": "In Progress",
+            "description": description,
+            "whyThisStep": why_this_step,
+            "percentage": 0,
+            "reason": reason,
+            "tasks": [
+                {
+                    "id": t.get("id", f"task-adapt-{uuid.uuid4().hex[:6]}"),
+                    "title": t.get("title", "Practice Exercise"),
+                    "type": t.get("type", "Hands-on"),
+                    "estimatedHours": float(t.get("estimatedHours", 2.0)),
+                    "completed": False
+                }
+                for t in tasks
+            ]
+        }
+
+        stages.append(new_stage)
+        roadmap["stages"] = stages
+        db.roadmaps[user_id] = roadmap
+        return new_stage
+
     # =========================================================================
     # 6. Progress
     # =========================================================================
@@ -365,6 +414,9 @@ class SupabaseService:
                 print(f"[Supabase] save_project error: {e}")
 
         return project_data
+
+    async def upsert_project(self, user_id: str, project_data: Dict[str, Any]) -> Dict[str, Any]:
+        return await self.save_project(user_id, project_data)
 
     # =========================================================================
     # 8. Jobs
