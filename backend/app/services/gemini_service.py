@@ -108,136 +108,149 @@ class GeminiService:
             except Exception as e:
                 print(f"[GeminiService] Live analysis error: {e}. Falling back to deterministic engine.")
 
-        # High-Fidelity Deterministic Fallback based on Student Background
+        # Dynamically classify persona based on verified skills and experience
+        skills_lower = [s.lower() for s in skills]
         is_beginner = "beginner" in experience.lower() or len(skills) <= 1
-        readiness = 20 if is_beginner else 42
-        weeks = 12 if is_beginner else 8
+        is_frontend = any("react" in s or "typescript" in s or "javascript" in s for s in skills_lower) and not any("fastapi" in s or "django" in s for s in skills_lower)
+        is_advanced = len(skills) >= 5 or any("pytorch" in s or "transformers" in s or "kubernetes" in s for s in skills_lower) or len(projects) >= 3
 
-        critical_gaps = [
-            {
-                "gap": "Vector Databases (ChromaDB / Pinecone)",
-                "reason": "Target roles require building retrieval-augmented applications with cosine search",
-                "priority": "high"
-            },
-            {
-                "gap": "RAG Evaluation & Chunking",
-                "reason": "Companies need LLMs grounded in verified proprietary knowledge without hallucinations",
-                "priority": "high"
-            },
-            {
-                "gap": "AI Agents & Function Calling",
-                "reason": "Modern AI engineering has moved from single prompts to autonomous tool execution loops",
-                "priority": "medium"
-            }
-        ]
-
-        stages = [
-            {
-                "stageNumber": 1,
-                "title": "Foundations",
-                "status": "Completed" if not is_beginner else "In Progress",
-                "description": "Core programming, async patterns, version control, and modular architecture.",
-                "whyThisStep": "You need clean software engineering hygiene before packaging and deploying AI pipelines.",
-                "percentage": 100 if not is_beginner else 40,
-                "tasks": [
-                    {"id": "t1-1", "title": "Python OOP & Async/Await", "type": "Theory", "estimatedHours": 3, "completed": not is_beginner},
-                    {"id": "t1-2", "title": "Git Workflow & Branching", "type": "Hands-on", "estimatedHours": 2, "completed": not is_beginner},
-                    {"id": "t1-3", "title": "Build a Modular CLI Tool", "type": "Project", "estimatedHours": 4, "completed": not is_beginner}
-                ]
-            },
-            {
-                "stageNumber": 2,
-                "title": "Backend & APIs",
-                "status": "In Progress" if not is_beginner else "Next",
-                "description": "High-throughput REST APIs, database schemas, and microservices.",
-                "whyThisStep": "AI models cannot be deployed in production without robust backend endpoints serving inference.",
-                "percentage": 60 if not is_beginner else 0,
-                "tasks": [
-                    {"id": "t2-1", "title": "FastAPI Dependency Injection & Routing", "type": "Theory", "estimatedHours": 2, "completed": not is_beginner},
-                    {"id": "t2-2", "title": "PostgreSQL & Supabase CRUD Operations", "type": "Hands-on", "estimatedHours": 3, "completed": not is_beginner},
-                    {"id": "t2-3", "title": "Dockerize API & Multi-stage Build", "type": "Hands-on", "estimatedHours": 3, "completed": False}
-                ]
-            },
-            {
-                "stageNumber": 3,
-                "title": "AI & LLMs",
-                "status": "Next" if not is_beginner else "Upcoming",
-                "description": "Master transformer mechanics, tokenization, prompt design, and embeddings.",
-                "whyThisStep": "Bridges traditional backend programming into modern generative AI systems.",
-                "percentage": 0,
-                "tasks": [
-                    {"id": "t3-1", "title": "LLM Tokens & Context Window Mechanics", "type": "Theory", "estimatedHours": 2, "completed": False},
-                    {"id": "t3-2", "title": "Structured Output & JSON Schema with Gemini", "type": "Hands-on", "estimatedHours": 3, "completed": False},
-                    {"id": "t3-3", "title": "Generate Text Embeddings with Vector Math", "type": "Hands-on", "estimatedHours": 2, "completed": False}
-                ]
-            },
-            {
-                "stageNumber": 4,
-                "title": "RAG",
-                "status": "Upcoming",
-                "description": "Build retrieval-augmented generation pipelines using vector search and rerankers.",
-                "whyThisStep": "Companies need LLMs grounded in proprietary knowledge rather than generic hallucinations.",
-                "percentage": 0,
-                "tasks": [
-                    {"id": "t4-1", "title": "Chunking Strategies (Fixed, Recursive, Semantic)", "type": "Theory", "estimatedHours": 2, "completed": False},
-                    {"id": "t4-2", "title": "Vector Search with ChromaDB & Cosine Distance", "type": "Hands-on", "estimatedHours": 3, "completed": False},
-                    {"id": "t4-3", "title": "Build a Document Q&A Retrieval Engine", "type": "Project", "estimatedHours": 6, "completed": False}
-                ]
-            },
-            {
-                "stageNumber": 5,
-                "title": "AI Agents",
-                "status": "Upcoming",
-                "description": "Implement autonomous tool-using agents with planning, execution, and verification.",
-                "whyThisStep": "The industry is shifting from static chatbots to autonomous action-oriented agent loops.",
-                "percentage": 0,
-                "tasks": [
-                    {"id": "t5-1", "title": "ReAct Agent Pattern & Function Calling", "type": "Theory", "estimatedHours": 3, "completed": False},
-                    {"id": "t5-2", "title": "Multi-Tool Execution & Error Recovery", "type": "Hands-on", "estimatedHours": 4, "completed": False},
-                    {"id": "t5-3", "title": "Build an Autonomous Web Research Agent", "type": "Project", "estimatedHours": 8, "completed": False}
-                ]
-            },
-            {
-                "stageNumber": 6,
-                "title": "Production & DevOps",
-                "status": "Upcoming",
-                "description": "Rate limiting, evaluation harnesses, CI/CD, telemetry, and cloud deployment.",
-                "whyThisStep": "Proves you can operate resilient, low-latency AI services at scale.",
-                "percentage": 0,
-                "tasks": [
-                    {"id": "t6-1", "title": "LLM Observability & Latency Tracing", "type": "Theory", "estimatedHours": 2, "completed": False},
-                    {"id": "t6-2", "title": "CI/CD Pipeline with Automated Lint & Test", "type": "Hands-on", "estimatedHours": 3, "completed": False}
-                ]
-            },
-            {
-                "stageNumber": 7,
-                "title": "Career & Jobs",
-                "status": "Upcoming",
-                "description": "Portfolio polish, live demos, resume tailoring, and behavioral/technical interviews.",
-                "whyThisStep": "Translates technical capability into verified hiring offers.",
-                "percentage": 0,
-                "tasks": [
-                    {"id": "t7-1", "title": "System Design Portfolio Case Study", "type": "Project", "estimatedHours": 4, "completed": False},
-                    {"id": "t7-2", "title": "Technical Mock Interview on RAG & Agents", "type": "Hands-on", "estimatedHours": 2, "completed": False}
-                ]
-            }
-        ]
+        if is_beginner:
+            readiness = 15
+            weeks = 14
+            critical_gaps = [
+                {
+                    "gap": "Python Software Engineering & OOP",
+                    "reason": "Target roles require writing clean, production-grade object-oriented Python before working with models",
+                    "priority": "high"
+                },
+                {
+                    "gap": "Git, Linux & Command Line Tooling",
+                    "reason": "Essential for version control, collaborative development, and deployment workflows",
+                    "priority": "high"
+                },
+                {
+                    "gap": "REST APIs & Backend Fundamentals",
+                    "reason": "AI models require APIs and database connections to serve predictions",
+                    "priority": "medium"
+                }
+            ]
+            immediate_focus = "Python OOP, Data Structures & Git Workflow"
+            stages = [
+                {"stageNumber": 1, "title": "Foundations", "status": "In Progress", "description": "Core Python programming, data structures, Git, and Linux CLI basics.", "whyThisStep": "Essential foundation before attempting web frameworks or machine learning.", "percentage": 30, "tasks": [{"id": "t1-1", "title": "Python OOP & Async/Await", "type": "Theory", "estimatedHours": 3, "completed": False}, {"id": "t1-2", "title": "Git Workflow & Version Control", "type": "Hands-on", "estimatedHours": 2, "completed": False}, {"id": "t1-3", "title": "Build a Modular CLI Tool", "type": "Project", "estimatedHours": 4, "completed": False}]},
+                {"stageNumber": 2, "title": "Backend & APIs", "status": "Upcoming", "description": "High-throughput REST APIs and databases with FastAPI.", "whyThisStep": "Learn how to wrap code in endpoints.", "percentage": 0, "tasks": [{"id": "t2-1", "title": "FastAPI Basics", "type": "Theory", "estimatedHours": 2, "completed": False}]},
+                {"stageNumber": 3, "title": "AI & LLMs", "status": "Upcoming", "description": "Tokens, prompts, and inference APIs.", "whyThisStep": "Bridge programming into generative AI.", "percentage": 0, "tasks": [{"id": "t3-1", "title": "Gemini API Prompting", "type": "Hands-on", "estimatedHours": 2, "completed": False}]},
+                {"stageNumber": 4, "title": "RAG", "status": "Upcoming", "description": "Vector search and knowledge retrieval.", "whyThisStep": "Ground LLMs with data.", "percentage": 0, "tasks": []},
+                {"stageNumber": 5, "title": "AI Agents", "status": "Upcoming", "description": "Tool use and agentic workflows.", "whyThisStep": "Multi-step reasoning systems.", "percentage": 0, "tasks": []},
+                {"stageNumber": 6, "title": "Production & DevOps", "status": "Upcoming", "description": "Docker and deployment.", "whyThisStep": "Cloud delivery.", "percentage": 0, "tasks": []},
+                {"stageNumber": 7, "title": "Career & Jobs", "status": "Upcoming", "description": "Interviews and portfolio.", "whyThisStep": "Landing offers.", "percentage": 0, "tasks": []}
+            ]
+        elif is_frontend:
+            readiness = 32
+            weeks = 10
+            critical_gaps = [
+                {
+                    "gap": "Python & FastAPI Backend Architecture",
+                    "reason": "As a frontend developer, your primary career unlock is mastering server-side APIs that interface with LLMs",
+                    "priority": "high"
+                },
+                {
+                    "gap": "Vector Databases & RAG Retrieval",
+                    "reason": "Companies hiring Full Stack AI Engineers expect you to integrate vector similarity search with reactive UI frontends",
+                    "priority": "high"
+                },
+                {
+                    "gap": "Streaming LLM Responses & WebSockets",
+                    "reason": "Creating premium AI user experiences requires handling tokens as they stream from the backend",
+                    "priority": "medium"
+                }
+            ]
+            immediate_focus = "FastAPI Backend & Streaming SSE Endpoints"
+            stages = [
+                {"stageNumber": 1, "title": "Frontend & UI Engineering", "status": "Completed", "description": "React, TypeScript, state management, and modern component systems.", "whyThisStep": "Verified strength based on your existing frontend portfolio.", "percentage": 100, "tasks": [{"id": "t1-1", "title": "React & TypeScript Component Systems", "type": "Hands-on", "estimatedHours": 2, "completed": True}]},
+                {"stageNumber": 2, "title": "Python & Backend APIs", "status": "In Progress", "description": "Learn Python, FastAPI endpoints, Pydantic data schemas, and PostgreSQL.", "whyThisStep": "Bridges your UI expertise into server-side business logic and AI integration.", "percentage": 40, "tasks": [{"id": "t2-1", "title": "FastAPI Dependency Injection", "type": "Theory", "estimatedHours": 2, "completed": True}, {"id": "t2-2", "title": "Build Streaming SSE AI Endpoint", "type": "Hands-on", "estimatedHours": 3, "completed": False}]},
+                {"stageNumber": 3, "title": "AI & LLMs", "status": "Next", "description": "Token mechanics, embeddings, and generative APIs.", "whyThisStep": "Core intelligence layer for full stack AI apps.", "percentage": 0, "tasks": [{"id": "t3-1", "title": "Embeddings & Token Cost Optimization", "type": "Hands-on", "estimatedHours": 3, "completed": False}]},
+                {"stageNumber": 4, "title": "RAG", "status": "Upcoming", "description": "Connect React search interfaces to ChromaDB vector search.", "whyThisStep": "Build full stack knowledge-retrieval applications.", "percentage": 0, "tasks": []},
+                {"stageNumber": 5, "title": "AI Agents", "status": "Upcoming", "description": "Build interactive agentic frontends.", "whyThisStep": "Human-in-the-loop agent systems.", "percentage": 0, "tasks": []},
+                {"stageNumber": 6, "title": "Production & DevOps", "status": "Upcoming", "description": "Vercel + Docker backend deployments.", "whyThisStep": "Ship complete full stack architectures.", "percentage": 0, "tasks": []},
+                {"stageNumber": 7, "title": "Career & Jobs", "status": "Upcoming", "description": "Showcase end-to-end full stack AI apps.", "whyThisStep": "Target Full Stack AI Engineer positions.", "percentage": 0, "tasks": []}
+            ]
+        elif is_advanced:
+            readiness = 72
+            weeks = 4
+            critical_gaps = [
+                {
+                    "gap": "Autonomous Tool Calling & Multi-Agent Loops",
+                    "reason": "Senior roles demand architecting multi-step reasoning agents with planning, state management, and error correction",
+                    "priority": "high"
+                },
+                {
+                    "gap": "LLM Evaluation Harnesses & Benchmarking",
+                    "reason": "Enterprise deployments require automated regression testing and prompt evaluation pipelines",
+                    "priority": "high"
+                },
+                {
+                    "gap": "Distributed Vector Search & Hybrid Re-ranking",
+                    "reason": "Production scale requires combining BM25 keyword search with dense embeddings and cross-encoders",
+                    "priority": "medium"
+                }
+            ]
+            immediate_focus = "Autonomous Tool-Using Agents & Evaluation Benchmarks"
+            stages = [
+                {"stageNumber": 1, "title": "Foundations", "status": "Completed", "description": "Advanced programming & systems architecture.", "whyThisStep": "Mastered.", "percentage": 100, "tasks": [{"id": "t1-1", "title": "Systems Architecture", "type": "Theory", "estimatedHours": 1, "completed": True}]},
+                {"stageNumber": 2, "title": "Backend & APIs", "status": "Completed", "description": "High throughput microservices & containers.", "whyThisStep": "Mastered.", "percentage": 100, "tasks": [{"id": "t2-1", "title": "Microservices", "type": "Hands-on", "estimatedHours": 1, "completed": True}]},
+                {"stageNumber": 3, "title": "AI & LLMs", "status": "Completed", "description": "Transformers, tokenization, embeddings.", "whyThisStep": "Mastered.", "percentage": 100, "tasks": [{"id": "t3-1", "title": "Embeddings", "type": "Hands-on", "estimatedHours": 1, "completed": True}]},
+                {"stageNumber": 4, "title": "RAG & Vector Pipelines", "status": "Completed", "description": "Vector indexing & chunking.", "whyThisStep": "Mastered.", "percentage": 100, "tasks": [{"id": "t4-1", "title": "Vector Pipelines", "type": "Hands-on", "estimatedHours": 1, "completed": True}]},
+                {"stageNumber": 5, "title": "AI Agents", "status": "In Progress", "description": "Autonomous multi-tool agents with ReAct loops.", "whyThisStep": "Highest-leverage frontier for your advanced skillset.", "percentage": 50, "tasks": [{"id": "t5-1", "title": "Build Multi-Tool Research Agent", "type": "Project", "estimatedHours": 6, "completed": False}]},
+                {"stageNumber": 6, "title": "Production & DevOps", "status": "Next", "description": "LLM telemetry, latency profiling, and CI/CD.", "whyThisStep": "Production readiness.", "percentage": 0, "tasks": [{"id": "t6-1", "title": "Latency Tracing & Evaluation", "type": "Hands-on", "estimatedHours": 3, "completed": False}]},
+                {"stageNumber": 7, "title": "Career & Jobs", "status": "Upcoming", "description": "Target senior and lead AI Engineer roles.", "whyThisStep": "Negotiate top tier compensation.", "percentage": 0, "tasks": []}
+            ]
+        else:
+            readiness = 42
+            weeks = 8
+            critical_gaps = [
+                {
+                    "gap": "Vector Databases (ChromaDB / Pinecone)",
+                    "reason": "Target roles require building retrieval-augmented applications with cosine search",
+                    "priority": "high"
+                },
+                {
+                    "gap": "RAG Evaluation & Chunking",
+                    "reason": "Companies need LLMs grounded in verified proprietary knowledge without hallucinations",
+                    "priority": "high"
+                },
+                {
+                    "gap": "AI Agents & Function Calling",
+                    "reason": "Modern AI engineering has moved from single prompts to autonomous tool execution loops",
+                    "priority": "medium"
+                }
+            ]
+            immediate_focus = "Vector Databases and RAG Implementation"
+            stages = [
+                {"stageNumber": 1, "title": "Foundations", "status": "Completed", "description": "Core programming, async patterns, version control, and modular architecture.", "whyThisStep": "You need clean software engineering hygiene before packaging and deploying AI pipelines.", "percentage": 100, "tasks": [{"id": "t1-1", "title": "Python OOP & Async/Await", "type": "Theory", "estimatedHours": 3, "completed": True}, {"id": "t1-2", "title": "Git Workflow & Branching", "type": "Hands-on", "estimatedHours": 2, "completed": True}, {"id": "t1-3", "title": "Build a Modular CLI Tool", "type": "Project", "estimatedHours": 4, "completed": True}]},
+                {"stageNumber": 2, "title": "Backend & APIs", "status": "In Progress", "description": "High-throughput REST APIs, database schemas, and microservices.", "whyThisStep": "AI models cannot be deployed in production without robust backend endpoints serving inference.", "percentage": 60, "tasks": [{"id": "t2-1", "title": "FastAPI Dependency Injection & Routing", "type": "Theory", "estimatedHours": 2, "completed": True}, {"id": "t2-2", "title": "PostgreSQL & Supabase CRUD Operations", "type": "Hands-on", "estimatedHours": 3, "completed": True}, {"id": "t2-3", "title": "Dockerize API & Multi-stage Build", "type": "Hands-on", "estimatedHours": 3, "completed": False}]},
+                {"stageNumber": 3, "title": "AI & LLMs", "status": "Next", "description": "Master transformer mechanics, tokenization, prompt design, and embeddings.", "whyThisStep": "Bridges traditional backend programming into modern generative AI systems.", "percentage": 0, "tasks": [{"id": "t3-1", "title": "LLM Tokens & Context Window Mechanics", "type": "Theory", "estimatedHours": 2, "completed": False}, {"id": "t3-2", "title": "Structured Output & JSON Schema with Gemini", "type": "Hands-on", "estimatedHours": 3, "completed": False}, {"id": "t3-3", "title": "Generate Text Embeddings with Vector Math", "type": "Hands-on", "estimatedHours": 2, "completed": False}]},
+                {"stageNumber": 4, "title": "RAG", "status": "Upcoming", "description": "Build retrieval-augmented generation pipelines using vector search and rerankers.", "whyThisStep": "Companies need LLMs grounded in proprietary knowledge rather than generic hallucinations.", "percentage": 0, "tasks": [{"id": "t4-1", "title": "Chunking Strategies", "type": "Theory", "estimatedHours": 2, "completed": False}]},
+                {"stageNumber": 5, "title": "AI Agents", "status": "Upcoming", "description": "Implement autonomous tool-using agents with planning, execution, and verification.", "whyThisStep": "The industry is shifting from static chatbots to autonomous action-oriented agent loops.", "percentage": 0, "tasks": []},
+                {"stageNumber": 6, "title": "Production & DevOps", "status": "Upcoming", "description": "Rate limiting, evaluation harnesses, CI/CD, telemetry, and cloud deployment.", "whyThisStep": "Proves you can operate resilient, low-latency AI services at scale.", "percentage": 0, "tasks": []},
+                {"stageNumber": 7, "title": "Career & Jobs", "status": "Upcoming", "description": "Portfolio polish, live demos, resume tailoring, and behavioral/technical interviews.", "whyThisStep": "Translates technical capability into verified hiring offers.", "percentage": 0, "tasks": []}
+            ]
 
         return {
             "status": "success",
             "source": "deterministic-engine",
             "data": {
-                "summary": f"Targeting {goal}: You have foundational strengths in {', '.join(skills[:3]) if skills else 'programming'}. Immediate priority is mastering Vector Databases and RAG to bridge backend services with LLM reasoning.",
+                "summary": f"Targeting {goal}: You have verified strengths in {', '.join(skills[:3]) if skills else 'programming'}. Immediate priority is mastering {immediate_focus}.",
                 "readinessScore": readiness,
                 "estimatedWeeks": weeks,
-                "strengths": [{"skill": s, "reason": "Solid baseline programming ability"} for s in skills],
+                "strengths": [{"skill": s, "reason": "Verified baseline capability"} for s in skills],
                 "criticalGaps": critical_gaps,
-                "immediateFocus": "Vector Databases and RAG Implementation",
+                "immediateFocus": immediate_focus,
                 "stages": stages
             }
         }
 
     # =========================================================================
+
     # 2. Creator Conflict Resolver
     # =========================================================================
     async def resolve_learning_conflicts(
@@ -358,11 +371,20 @@ class GeminiService:
 
         # Deterministic Next Action
         stage_title = active_stage.get("title", "Backend & APIs")
-        if "rag" in stage_title.lower():
+        title_lower = stage_title.lower()
+        if "foundations" in title_lower:
+            action_desc = "Build a modular CLI tool with Python OOP and Git version control."
+            why = "Foundational software engineering practices and clean OOP are required before attempting microservices."
+            milestone = "Stage 1: Foundations"
+        elif "agent" in title_lower:
+            action_desc = "Implement an autonomous ReAct loop with multi-tool execution and error recovery."
+            why = "Senior AI engineering roles require building autonomous reasoning loops with state management."
+            milestone = "Stage 5: AI Agents"
+        elif "rag" in title_lower:
             action_desc = "Implement a basic vector search pipeline using ChromaDB and Python."
-            why = "You've completed LLM fundamentals and embeddings. Vector search is the exact missing technical component to complete your RAG milestone."
+            why = "Vector retrieval connects your backend code directly to LLM grounding."
             milestone = "Stage 4: RAG"
-        elif "backend" in stage_title.lower():
+        elif "backend" in title_lower:
             action_desc = "Dockerize your FastAPI backend with a multi-stage Dockerfile and test locally."
             why = "You've built the REST routes and DB CRUD. Containerization is the final task in this stage before proceeding to LLMs."
             milestone = "Stage 2: Backend & APIs"

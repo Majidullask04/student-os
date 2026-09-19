@@ -1,16 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
 from app.api import auth, profiles, agent, roadmap, resources, creators, jobs
 
 app = FastAPI(
-    title="Student OS API",
+    title=settings.PROJECT_NAME,
     description="A personal AI agent that guides students from learning to career readiness.",
     version="1.0.0"
 )
 
+# Production-grade CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

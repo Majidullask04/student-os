@@ -1,4 +1,5 @@
 import os
+from typing import List
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -16,6 +17,16 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+
+    # CORS origins
+    CORS_ORIGINS: List[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS", 
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8000,https://student-os.vercel.app"
+        ).split(",")
+        if origin.strip()
+    ]
 
     class Config:
         env_file = ".env"
