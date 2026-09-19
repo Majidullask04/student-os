@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, Menu, X, CheckCircle, Flame, Sparkles } from 'lucide-react';
+import { api } from '../../services/api';
 import { mockProfile } from '../../mocks/data';
 
 interface TopBarProps {
@@ -10,6 +11,13 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, isSidebarOpen }) => {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [userName, setUserName] = useState(mockProfile.name);
+
+  useEffect(() => {
+    api.getProfile().then(p => {
+      if (p && p.name) setUserName(p.name);
+    });
+  }, []);
 
   const notifications = [
     { id: '1', title: 'Roadmap Milestone reached!', desc: 'You completed 3 topics in Backend & APIs.', time: '10m ago', unread: true },
@@ -106,7 +114,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
           </div>
           <div className="hidden sm:block text-left">
             <div className="flex items-center gap-1">
-              <span className="text-xs font-bold text-slate-800">Hi, {mockProfile.name}</span>
+              <span className="text-xs font-bold text-slate-800">Hi, {userName}</span>
               <span className="text-xs">👋</span>
             </div>
             <p className="text-[11px] font-medium text-slate-400">Keep going!</p>

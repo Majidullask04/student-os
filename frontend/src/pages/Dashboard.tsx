@@ -122,13 +122,12 @@ export const Dashboard: React.FC = () => {
                 Bigger dreams.
               </p>
             </div>
-            <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden shadow-md ring-4 ring-white/80 bg-gradient-to-br from-indigo-200 to-purple-200 flex items-center justify-center">
+            <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-2xl overflow-hidden shadow-lg ring-4 ring-white/90 bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
               <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80" 
-                alt="Student graphic" 
-                className="w-full h-full object-cover"
+                src="/student-hero.png" 
+                alt="Student 3D avatar" 
+                className="w-full h-full object-cover object-top"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/40 via-transparent to-transparent" />
             </div>
           </div>
         </div>

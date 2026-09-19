@@ -71,10 +71,14 @@ async function fetchWithFallback<T>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
 
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    const authHeaders: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
+
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...(options?.headers || {}),
       },
       signal: controller.signal,
