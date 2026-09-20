@@ -18,18 +18,24 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
+    # Environment & Auth Enforcement
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    ENFORCE_AUTH: bool = os.getenv("ENFORCE_AUTH", "").lower() in ("true", "1", "yes") or os.getenv("ENVIRONMENT", "").lower() == "production"
+
     # CORS origins
     CORS_ORIGINS: List[str] = [
         origin.strip()
         for origin in os.getenv(
             "CORS_ORIGINS", 
-            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8000,https://student-os.vercel.app"
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8000,https://student-os.vercel.app,https://student-os-lime-psi.vercel.app"
         ).split(",")
         if origin.strip()
     ]
+    CORS_ORIGIN_REGEX: str = os.getenv("CORS_ORIGIN_REGEX", r"https:\/\/.*\.amplifyapp\.com")
 
     class Config:
         env_file = ".env"
         extra = "allow"
 
 settings = Settings()
+

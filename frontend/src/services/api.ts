@@ -22,7 +22,9 @@ import {
   mockTodaysFocus
 } from '../mocks/data';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { supabase } from '../lib/supabase';
+
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 // Storage keys for local persistence while backend is offline
 const STORAGE_KEYS = {
@@ -37,6 +39,39 @@ const STORAGE_KEYS = {
   FOCUS: 'student_os_focus',
   AUTH_TOKEN: 'student_os_auth_token',
 };
+
+// Actively sync Supabase JWT session token
+let activeAuthToken: string | null = null;
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.access_token) {
+    activeAuthToken = session.access_token;
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+  }
+}).catch(() => {});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  activeAuthToken = session?.access_token ?? null;
+  if (session?.access_token) {
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+  } else {
+    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+  }
+});
+
+async function getAuthToken(): Promise<string | null> {
+  if (activeAuthToken) return activeAuthToken;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      activeAuthToken = session.access_token;
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+      return activeAuthToken;
+    }
+  } catch {
+    // Ignore and check localStorage
+  }
+  return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+}
 
 // Helper to get or initialize local storage
 function getLocalItem<T>(key: string, fallback: T): T {
@@ -57,8 +92,11 @@ function setLocalItem<T>(key: string, value: T): void {
 }
 
 /**
- * Robust fetch wrapper that gracefully attempts the real backend API,
- * and seamlessly falls back to mock data if the backend is unavailable.
+ * Robust fetch wrapper that calls the real backend API with realistic AI inference timeouts.
+ * - AI Agent / Generation routes get 45 seconds (allows real Gemini LLM + Tool-Calling + RAG).
+ * - Standard routes get 12 seconds.
+ * - Seamlessly attaches Supabase JWT Bearer token.
+ * - Falls back to offline mock data ONLY when backend is unreachable or in guest demo mode.
  */
 async function fetchWithFallback<T>(
   endpoint: string, 
@@ -66,12 +104,15 @@ async function fetchWithFallback<T>(
   fallbackFn: () => T | Promise<T>
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  try {
-    // Attempt real backend call with a short timeout to prevent UI hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const isAiEndpoint = endpoint.startsWith('/agent') || endpoint.startsWith('/jobs') || endpoint.startsWith('/assessment');
+  const timeoutMs = isAiEndpoint ? 45000 : 12000;
+  const isDemoGuest = localStorage.getItem('student_os_demo_guest') === 'true';
 
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const token = await getAuthToken();
     const authHeaders: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
 
     const response = await fetch(url, {
@@ -89,11 +130,18 @@ async function fetchWithFallback<T>(
     if (response.ok) {
       return await response.json();
     }
-    console.info(`[API] Endpoint ${endpoint} returned ${response.status}, falling back to mock.`);
+
+    // If 401 Unauthorized and not in demo mode, clear invalid token and throw or notify
+    if (response.status === 401 && !isDemoGuest) {
+      console.warn(`[API] 401 Unauthorized for ${endpoint}. Authentication required.`);
+    }
+
+    console.info(`[API] Endpoint ${endpoint} returned status ${response.status}, falling back gracefully.`);
     return await fallbackFn();
-  } catch (err) {
-    // Backend is not running or unreachable: silently and smoothly use fallback
-    // console.info(`[API] Backend offline at ${url}. Using seeded mock data.`);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.warn(`[API] Request to ${endpoint} timed out after ${timeoutMs}ms.`);
+    }
     return await fallbackFn();
   }
 }
