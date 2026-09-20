@@ -710,14 +710,13 @@ export const mockInitialMessages: ChatMessage[] = [
     id: 'm-1',
     sender: 'assistant',
     timestamp: '10:24 AM',
-    text: `Hi Majidulla! 👋
-I'm your personal AI learning agent. I understand your goals, current skills, and learning preferences. I can help you with:
+    text: `Hi Majidulla,
+I am your personal AI learning agent. I continuously evaluate your goals, current skills, and roadmap milestones to provide:
 
-• Personalized learning guidance
-• Best resources from across the web
-• Project ideas and implementation help
-• Career guidance and interview preparation
-• Tracking your progress and adjusting your roadmap
+• Context-aware study recommendations
+• High-signal resources from top engineering creators
+• Project architecture & implementation guidance
+• Career readiness evaluation & interview prep
 
 What would you like to explore today?`
   },
@@ -731,7 +730,33 @@ What would you like to explore today?`
     id: 'm-3',
     sender: 'assistant',
     timestamp: '10:25 AM',
-    text: `Based on your profile, current progress, and goal of becoming an AI Engineer, here's what I recommend for today:`,
+    toolCalls: [
+      {
+        toolName: 'get_student_context',
+        args: { userId: 'user-1', includeGaps: true, targetRole: 'AI Engineer' },
+        resultSummary: 'Loaded student baseline (Python 85%, FastAPI 45%, Target: AI Engineer)',
+        executionTimeMs: 42,
+        status: 'completed',
+        resultPayload: {
+          targetRole: 'AI Engineer',
+          currentStage: 2,
+          proficiencyGap: 'Vector Databases & Similarity Search'
+        }
+      },
+      {
+        toolName: 'analyze_skills_gap',
+        args: { stage: 2, topic: 'Vector Databases for RAG' },
+        resultSummary: 'Identified high-impact bridge from backend to AI engineering',
+        executionTimeMs: 128,
+        status: 'completed',
+        resultPayload: {
+          recommendedMilestone: 'ChromaDB & LangChain RAG',
+          priority: 'High Impact',
+          estimatedHours: 2
+        }
+      }
+    ],
+    text: `Based on your profile, current progress, and goal of becoming an AI Engineer, here is what I recommend for today:`,
     richCard: {
       type: 'recommendation',
       title: 'Learn: Vector Databases for RAG',
@@ -780,7 +805,7 @@ export const mockCommunityPosts: CommunityPost[] = [
     authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
     timeAgo: 'Pinned Announcement',
     category: 'Announcements',
-    title: '🚀 Welcome to Student OS Community: Build in Public and Learn Faster!',
+    title: 'Welcome to Student OS Community: Build in Public and Learn Faster',
     body: 'We believe learning with peers accelerates mastery 3x faster. Join daily study rooms, share your project repos, ask questions on your roadmap hurdles, and attend weekly creator AMAs!',
     hashtags: ['#BuildInPublic', '#StudentOS', '#AIEngineering'],
     likesCount: 184,

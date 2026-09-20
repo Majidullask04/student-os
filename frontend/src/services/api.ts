@@ -557,7 +557,7 @@ export const api = {
           topic,
           score: passed ? 85 : 50,
           passed,
-          verdict: passed ? 'Mastery Demonstrated! 🎉' : 'Skill Gap Detected — Roadmap Adapted ⚡',
+          verdict: passed ? 'Mastery Demonstrated' : 'Skill Gap Detected — Roadmap Adapted',
           masteredConcepts: passed ? ['Chunking', 'Vector Indexing'] : ['Chunking'],
           identifiedGaps: passed ? [] : ['HNSW Vector Indexing'],
           roadmapAdapted: !passed,

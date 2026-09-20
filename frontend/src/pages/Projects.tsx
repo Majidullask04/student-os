@@ -10,7 +10,8 @@ import {
   Layers,
   ArrowRight,
   TrendingUp,
-  Cpu
+  Cpu,
+  X
 } from 'lucide-react';
 import { GithubIcon } from '../components/ui/BrandIcons';
 import { api } from '../services/api';
@@ -78,7 +79,7 @@ export const Projects: React.FC = () => {
         title: 'Autonomous Coding Agent CLI',
         desc: 'ReAct agent that reads local files, executes shell commands, and fixes bugs.',
         stack: ['LangGraph', 'Python', 'Click'],
-        badge: 'Trending 🔥'
+        badge: 'Trending'
       }
     ],
     'By Skill': [
@@ -94,7 +95,7 @@ export const Projects: React.FC = () => {
         title: 'Autonomous Student OS Sidecar',
         desc: 'Desktop copilot that watches what you code and automatically maps skill gains.',
         stack: ['Tauri', 'Rust', 'Gemini'],
-        badge: 'Hackathon Pick 🏆'
+        badge: 'Hackathon Pick'
       }
     ]
   };
@@ -148,9 +149,9 @@ export const Projects: React.FC = () => {
               </div>
               <button 
                 onClick={() => { setIsArchitectOpen(false); setGeneratedBlueprint(null); }}
-                className="text-slate-400 hover:text-slate-600 text-lg font-mono"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 

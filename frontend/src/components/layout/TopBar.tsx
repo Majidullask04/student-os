@@ -23,7 +23,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
   const notifications = [
     { id: '1', title: 'Roadmap Milestone reached!', desc: 'You completed 3 topics in Backend & APIs.', time: '10m ago', unread: true },
     { id: '2', title: 'New Creator Resource added', desc: 'Andrej Karpathy released "LLM from Scratch Part 2".', time: '2h ago', unread: true },
-    { id: '3', title: 'Streak saved!', desc: '12 days in a row! You are on fire 🔥', time: '1d ago', unread: false },
+    { id: '3', title: 'Streak saved!', desc: '12 days in a row! Continuous learning streak.', time: '1d ago', unread: false },
   ];
 
   return (
@@ -114,11 +114,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
           </div>
           <div className="hidden sm:block text-left">
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-bold text-slate-800">Hi, {userName}</span>
-              <span className="text-xs">👋</span>
-            </div>
-            <p className="text-[11px] font-medium text-slate-400">Keep going!</p>
+            <span className="text-xs font-bold text-slate-800 block">Hi, {userName}</span>
+            <p className="text-[11px] font-medium text-slate-400">Keep going</p>
           </div>
         </div>
       </div>

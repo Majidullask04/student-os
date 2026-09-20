@@ -190,6 +190,14 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   timestamp: string;
   text: string;
+  toolCalls?: {
+    toolName: string;
+    args?: Record<string, any>;
+    resultSummary?: string;
+    resultPayload?: any;
+    executionTimeMs?: number;
+    status?: 'running' | 'completed' | 'failed';
+  }[];
   richCard?: {
     type: 'recommendation';
     title: string;

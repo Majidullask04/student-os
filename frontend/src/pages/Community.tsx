@@ -312,7 +312,7 @@ export const Community: React.FC = () => {
                         : 'bg-indigo-600 text-white hover:bg-indigo-700'
                     }`}
                   >
-                    {joinedGroups[g.id] ? 'Joined ✓' : 'Join'}
+                    {joinedGroups[g.id] ? 'Joined' : 'Join'}
                   </button>
                 </div>
               ))}

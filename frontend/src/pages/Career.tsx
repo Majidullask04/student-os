@@ -16,7 +16,9 @@ import {
   TrendingUp,
   Check,
   Copy,
-  Plus
+  Plus,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Job } from '../types';
@@ -184,9 +186,9 @@ export const Career: React.FC = () => {
               </div>
               <button 
                 onClick={() => { setIsPasteJdOpen(false); setParsedJdResult(null); }}
-                className="text-slate-400 hover:text-slate-600 text-lg font-mono"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -261,7 +263,10 @@ export const Career: React.FC = () => {
                 {/* Extracted Skills & Gaps */}
                 <div className="space-y-2 text-xs">
                   <div>
-                    <span className="font-bold text-emerald-800 block mb-1">✓ Verified Matched Skills:</span>
+                    <span className="font-bold text-emerald-800 flex items-center gap-1 mb-1">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      Verified Matched Skills:
+                    </span>
                     <div className="flex flex-wrap gap-1.5">
                       {parsedJdResult.matchedSkills?.map((s: string) => (
                         <span key={s} className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-medium">
@@ -272,7 +277,10 @@ export const Career: React.FC = () => {
                   </div>
 
                   <div>
-                    <span className="font-bold text-amber-800 block mb-1">⚠️ Missing Skill Gaps to Close:</span>
+                    <span className="font-bold text-amber-800 flex items-center gap-1 mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                      Missing Skill Gaps to Close:
+                    </span>
                     <div className="flex flex-wrap gap-1.5">
                       {parsedJdResult.missingSkills?.map((s: string) => (
                         <span key={s} className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-medium">
@@ -376,8 +384,9 @@ export const Career: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm sm:text-base font-bold text-slate-900">{job.title}</h3>
                         {job.isTopMatch && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            <ShinyText text="Top Match 🔥" className="text-emerald-700 font-bold" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
+                            <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                            Top Match
                           </span>
                         )}
                       </div>
@@ -489,7 +498,9 @@ export const Career: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <button onClick={() => setAnalysisResult(null)} className="text-slate-400 hover:text-slate-600 font-mono text-sm">✕</button>
+                      <button onClick={() => setAnalysisResult(null)} className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* 5D Dimension Grid */}
@@ -553,7 +564,9 @@ export const Career: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <button onClick={() => setTailorResult(null)} className="text-slate-400 hover:text-slate-600 font-mono text-sm">✕</button>
+                      <button onClick={() => setTailorResult(null)} className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Tailored CV Bullets */}
@@ -597,7 +610,9 @@ export const Career: React.FC = () => {
                           Interview Preparation ({interviewPrepResult.company})
                         </span>
                       </div>
-                      <button onClick={() => setInterviewPrepResult(null)} className="text-slate-400 hover:text-slate-600 font-mono text-sm">✕</button>
+                      <button onClick={() => setInterviewPrepResult(null)} className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Technical Deep Dives */}
@@ -746,8 +761,9 @@ export const Career: React.FC = () => {
             </button>
 
             {actionPlanGenerated && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 animate-in fade-in">
-                ✓ Personalized 2-week Sprint Plan generated and added to your Roadmap!
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-1.5 animate-in fade-in">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Personalized 2-week Sprint Plan generated and added to your Roadmap</span>
               </div>
             )}
           </div>
