@@ -7,6 +7,15 @@ COPY package.json package-lock.json ./
 RUN npm ci || npm install
 
 COPY . .
+
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_SUPABASE_URL=https://rfdvrynwzmghxovikukk.supabase.co
+ARG VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_E2ZOLFfvDod-OQ1zhe421w_QNKT_akn
+
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+    VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+
 RUN npm run build
 
 # Production server stage with Nginx
