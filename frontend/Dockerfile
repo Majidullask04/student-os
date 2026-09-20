@@ -1,16 +1,16 @@
 # Multi-stage production Dockerfile for Student OS Frontend
-FROM node:20-alpine as builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json package-lock.json ./
+RUN npm ci || npm install
 
 COPY . .
 RUN npm run build
 
 # Production server stage with Nginx
-FROM nginx:alpine as runner
+FROM nginx:alpine AS runner
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 

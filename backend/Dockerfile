@@ -1,5 +1,5 @@
 # Multi-stage Python production Dockerfile for Student OS Backend
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Final runtime image
-FROM python:3.11-slim as runner
+FROM python:3.11-slim AS runner
 
 WORKDIR /app
 
