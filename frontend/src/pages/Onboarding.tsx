@@ -73,12 +73,12 @@ export const Onboarding: React.FC = () => {
   ];
 
   const creators = [
-    { id: 'karpathy', name: 'Andrej Karpathy', role: 'AI & Deep Learning', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80' },
-    { id: 'kunalkushwaha', name: 'Kunal Kushwaha', role: 'DevOps, Web & DSA', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80' },
-    { id: 'fireship', name: 'Fireship', role: 'Modern Tools in 100s', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80' },
-    { id: 'hiteshchoudhary', name: 'Hitesh Choudhary', role: 'Full Stack & Cloud', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80' },
-    { id: 'techwithtim', name: 'Tech With Tim', role: 'Python & Software', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80' },
-    { id: 'freecodecamp', name: 'freeCodeCamp', role: 'Full Comprehensive Courses', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&auto=format&fit=crop&q=80' },
+    { id: 'karpathy', name: 'Andrej Karpathy', role: 'AI & Deep Learning', avatar: 'https://avatars.githubusercontent.com/u/241138?v=4' },
+    { id: 'kunalkushwaha', name: 'Kunal Kushwaha', role: 'DevOps, Web & DSA', avatar: 'https://avatars.githubusercontent.com/u/42698533?v=4' },
+    { id: 'fireship', name: 'Fireship', role: 'Modern Tools in 100s', avatar: 'https://avatars.githubusercontent.com/u/46283609?v=4' },
+    { id: 'hiteshchoudhary', name: 'Hitesh Choudhary', role: 'Full Stack & Cloud', avatar: 'https://avatars.githubusercontent.com/u/11613311?v=4' },
+    { id: 'techwithtim', name: 'Tech With Tim', role: 'Python & Software', avatar: 'https://avatars.githubusercontent.com/u/50495836?v=4' },
+    { id: 'freecodecamp', name: 'freeCodeCamp', role: 'Full Comprehensive Courses', avatar: 'https://avatars.githubusercontent.com/u/9892522?v=4' },
   ];
 
   const toggleSkill = (skill: string) => {

@@ -17,6 +17,9 @@ import { api } from '../services/api';
 import { Project } from '../types';
 import { mockProjects } from '../mocks/data';
 import confetti from 'canvas-confetti';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
+import { ShinyText } from '../components/ui/ShinyText';
+import { CountUp } from '../components/ui/CountUp';
 
 export const Projects: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(mockProjects);
@@ -274,9 +277,10 @@ export const Projects: React.FC = () => {
           {/* Project Cards */}
           <div className="space-y-4">
             {filteredProjects.map((project) => (
-              <div
+              <SpotlightCard
                 key={project.id}
-                className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:border-indigo-300 transition duration-150 space-y-4"
+                className="p-5 space-y-4"
+                spotlightColor="rgba(99, 102, 241, 0.12)"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -361,7 +365,7 @@ export const Projects: React.FC = () => {
                     View Details <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
+              </SpotlightCard>
             ))}
           </div>
         </div>
@@ -373,19 +377,27 @@ export const Projects: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">My Project Stats</h3>
             <div className="grid grid-cols-2 gap-2.5">
               <div className="p-3 rounded-xl bg-slate-50 text-center">
-                <span className="text-xl font-extrabold text-slate-900 block">{totalProjects}</span>
+                <span className="text-xl font-extrabold text-slate-900 block">
+                  <CountUp end={totalProjects} duration={800} />
+                </span>
                 <span className="text-[11px] text-slate-500">Total Projects</span>
               </div>
               <div className="p-3 rounded-xl bg-emerald-50 text-center">
-                <span className="text-xl font-extrabold text-emerald-600 block">{completedProjects}</span>
+                <span className="text-xl font-extrabold text-emerald-600 block">
+                  <CountUp end={completedProjects} duration={800} />
+                </span>
                 <span className="text-[11px] text-emerald-700">Completed</span>
               </div>
               <div className="p-3 rounded-xl bg-indigo-50 text-center">
-                <span className="text-xl font-extrabold text-indigo-600 block">{inProgressProjects}</span>
+                <span className="text-xl font-extrabold text-indigo-600 block">
+                  <CountUp end={inProgressProjects} duration={800} />
+                </span>
                 <span className="text-[11px] text-indigo-700">In Progress</span>
               </div>
               <div className="p-3 rounded-xl bg-purple-50 text-center">
-                <span className="text-xl font-extrabold text-purple-600 block">{ideaProjects}</span>
+                <span className="text-xl font-extrabold text-purple-600 block">
+                  <CountUp end={ideaProjects} duration={800} />
+                </span>
                 <span className="text-[11px] text-purple-700">Ideas</span>
               </div>
             </div>

@@ -200,7 +200,7 @@ export const Assistant: React.FC = () => {
                     </div>
                   ) : (
                     <img
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+                      src="/student-avatar.jpg"
                       alt="User"
                       className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 ring-2 ring-indigo-500/20"
                     />

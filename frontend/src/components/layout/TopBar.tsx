@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Bell, Menu, X, CheckCircle, Flame, Sparkles } from 'lucide-react';
 import { api } from '../../services/api';
 import { mockProfile } from '../../mocks/data';
+import { StudentOsLogo } from '../ui/StudentOsLogo';
 
 interface TopBarProps {
   onOpenSearch: () => void;
@@ -36,7 +37,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
         >
           {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
-        <span className="font-bold text-slate-800 tracking-tight text-base">Student OS</span>
+        <StudentOsLogo size={28} showText={true} theme="light" />
       </div>
 
       {/* Global Search Bar */}
@@ -106,7 +107,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
         <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
           <div className="relative">
             <img
-              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+              src="/student-avatar.jpg"
               alt={mockProfile.name}
               className="w-9 h-9 rounded-full object-cover ring-2 ring-indigo-500/20"
             />

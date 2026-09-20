@@ -23,6 +23,9 @@ import { api } from '../services/api';
 import { Roadmap as RoadmapType, RoadmapModule, RoadmapTask } from '../types';
 import { mockRoadmap } from '../mocks/data';
 import confetti from 'canvas-confetti';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
+import { ShinyText } from '../components/ui/ShinyText';
+import { CountUp } from '../components/ui/CountUp';
 
 export const Roadmap: React.FC = () => {
   const [roadmap, setRoadmap] = useState<RoadmapType>(mockRoadmap);
@@ -684,7 +687,7 @@ export const Roadmap: React.FC = () => {
         {/* Right Column (3 cols): Explanations & AI Insights */}
         <div className="lg:col-span-3 space-y-4">
           {/* Why this step? Card */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs">
+          <SpotlightCard className="p-5" spotlightColor="rgba(99, 102, 241, 0.12)">
             <div className="flex items-center gap-2 mb-2.5">
               <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -694,33 +697,33 @@ export const Roadmap: React.FC = () => {
             <p className="text-xs text-slate-600 leading-relaxed">
               {selectedModule.whyThisStep || 'This module provides fundamental building blocks needed for subsequent milestones.'}
             </p>
-          </div>
+          </SpotlightCard>
 
           {/* AI Agent Suggestion Card */}
           {selectedModule.aiSuggestion && (
-            <div className="bg-gradient-to-br from-indigo-50/90 to-purple-50/70 rounded-2xl p-5 border border-indigo-100 shadow-2xs space-y-3">
+            <SpotlightCard className="p-5 space-y-3" spotlightColor="rgba(147, 51, 234, 0.18)">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                   <Bot className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-xs font-bold text-slate-900">AI Agent Suggestion</h3>
+                <ShinyText text="AI Agent Recommendation" className="text-xs font-bold text-slate-900" />
               </div>
               <p className="text-xs text-slate-700 leading-relaxed">
                 {selectedModule.aiSuggestion.text}
               </p>
               <button
                 onClick={() => setExpandedTaskId(selectedModule.aiSuggestion?.nextTaskId || '')}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs"
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs cursor-pointer active:scale-95"
               >
                 <span>Start Next Task</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </SpotlightCard>
           )}
 
           {/* Recommended Project Card */}
           {selectedModule.recommendedProject && (
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-2">
+            <SpotlightCard className="p-5 space-y-2" spotlightColor="rgba(16, 185, 129, 0.12)">
               <div className="flex items-center gap-2">
                 <FolderGit2 className="w-4 h-4 text-purple-600" />
                 <h3 className="text-xs font-bold text-slate-900">Recommended Project</h3>
@@ -734,7 +737,7 @@ export const Roadmap: React.FC = () => {
                   {selectedModule.recommendedProject.description}
                 </p>
               </div>
-            </div>
+            </SpotlightCard>
           )}
 
           {/* Additional Resources list */}

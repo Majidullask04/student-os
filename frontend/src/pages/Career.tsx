@@ -22,6 +22,12 @@ import { api } from '../services/api';
 import { Job } from '../types';
 import { mockJobs } from '../mocks/data';
 import confetti from 'canvas-confetti';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
+import { ShinyText } from '../components/ui/ShinyText';
+import { CountUp } from '../components/ui/CountUp';
+import { GridPattern } from '../components/ui/GridPattern';
+import { Magnet } from '../components/ui/Magnet';
+import { DecryptedText } from '../components/ui/DecryptedText';
 
 export const Career: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>(mockJobs);
@@ -353,9 +359,10 @@ export const Career: React.FC = () => {
 
           <div className="space-y-4">
             {filteredJobs.map((job) => (
-              <div
+              <SpotlightCard
                 key={job.id}
-                className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:border-indigo-300 transition duration-150 space-y-4"
+                spotlightColor="rgba(99, 102, 241, 0.14)"
+                className="p-5 space-y-4"
               >
                 {/* Job Header */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -369,8 +376,8 @@ export const Career: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm sm:text-base font-bold text-slate-900">{job.title}</h3>
                         {job.isTopMatch && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            Top Match
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            <ShinyText text="Top Match 🔥" className="text-emerald-700 font-bold" />
                           </span>
                         )}
                       </div>
@@ -387,7 +394,7 @@ export const Career: React.FC = () => {
                   {/* Match Score Gauge */}
                   <div className="text-left sm:text-right shrink-0 bg-slate-50 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
                     <div className="flex items-center sm:justify-end gap-1.5">
-                      <span className="text-lg font-black text-indigo-600">{job.matchScore}%</span>
+                      <CountUp to={job.matchScore} suffix="%" className="text-lg font-black text-indigo-600" />
                       <span className="text-xs font-semibold text-slate-500">Fit</span>
                     </div>
                     <div className="w-24 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
@@ -636,7 +643,7 @@ export const Career: React.FC = () => {
                     )}
                   </div>
                 )}
-              </div>
+              </SpotlightCard>
             ))}
           </div>
         </div>

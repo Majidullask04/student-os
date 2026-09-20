@@ -21,6 +21,7 @@ import { api } from '../services/api';
 import { Creator } from '../types';
 import { mockCreators } from '../mocks/data';
 import confetti from 'canvas-confetti';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
 
 export const Creators: React.FC = () => {
   const [creators, setCreators] = useState<Creator[]>(mockCreators);
@@ -197,9 +198,10 @@ export const Creators: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {filteredCreators.map((creator) => (
-            <div
+            <SpotlightCard
               key={creator.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:border-indigo-300 transition duration-150 flex flex-col justify-between space-y-4"
+              className="p-5 flex flex-col justify-between space-y-4"
+              spotlightColor="rgba(147, 51, 234, 0.12)"
             >
               {/* Creator Header */}
               <div>
@@ -280,7 +282,7 @@ export const Creators: React.FC = () => {
                   {creator.whyRelevant}
                 </p>
               </div>
-            </div>
+            </SpotlightCard>
           ))}
         </div>
       </div>
