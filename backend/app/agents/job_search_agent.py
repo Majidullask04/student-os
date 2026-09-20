@@ -241,6 +241,8 @@ class JobSearchAgent:
                 "locationNote": fit["locationNote"],
                 "skillsMatched": fit["matchedSkills"],
                 "skillsToImprove": fit["missingSkills"],
+                "matchedSkills": fit["matchedSkills"],
+                "missingSkills": fit["missingSkills"],
                 "projectsAsEvidence": fit["projectsAsEvidence"]
             })
 

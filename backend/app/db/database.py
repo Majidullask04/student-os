@@ -393,4 +393,116 @@ class InMemoryDatabase:
             ]
         }
 
+        # ---------------------------------------------------------------------
+        # Schema v2 Production Collections (Conversations, Observability, RAG)
+        # ---------------------------------------------------------------------
+        self.conversations: Dict[str, List[Dict[str, Any]]] = {
+            "user-1": [
+                {
+                    "id": "conv-default-1",
+                    "user_id": "user-1",
+                    "title": "Roadmap Alignment & Strategy",
+                    "created_at": "2026-01-11T14:00:00Z"
+                }
+            ]
+        }
+
+        self.messages: Dict[str, List[Dict[str, Any]]] = {
+            "conv-default-1": [
+                {
+                    "id": "msg-1",
+                    "conversation_id": "conv-default-1",
+                    "role": "user",
+                    "content": "Can you analyze my current skill gaps against an entry-level AI Engineer role?",
+                    "tool_calls": [],
+                    "created_at": "2026-01-11T14:01:00Z"
+                },
+                {
+                    "id": "msg-2",
+                    "conversation_id": "conv-default-1",
+                    "role": "assistant",
+                    "content": "I evaluated your verified profile against production market requirements. Your core gap is in vector databases and chunking mechanics.",
+                    "tool_calls": [
+                        {
+                            "tool_name": "get_student_context",
+                            "latency_ms": 184,
+                            "status": "success",
+                            "input_json": {"user_id": "user-1"},
+                            "output_json": {"verified_skills": ["Python", "FastAPI", "Git", "Docker"], "goal": "AI Engineer"}
+                        }
+                    ],
+                    "created_at": "2026-01-11T14:01:03Z"
+                }
+            ]
+        }
+
+        self.agent_runs: Dict[str, Dict[str, Any]] = {}
+        self.tool_calls: Dict[str, List[Dict[str, Any]]] = {}
+        self.bookmarks: Dict[str, List[Dict[str, Any]]] = {
+            "user-1": [
+                {
+                    "id": "bm-1",
+                    "user_id": "user-1",
+                    "item_type": "resource",
+                    "item_id": "res-1",
+                    "title": "Neural Networks: Zero to Hero by Andrej Karpathy",
+                    "url": "https://youtube.com/playlist?list=PLAqhIrjkxbuWI23v9C86AOgPWL4aRMXk1",
+                    "tags": ["AI", "Neural Networks", "Deep Learning"],
+                    "notes": "Must complete micrograd by Sunday",
+                    "status": "in_progress",
+                    "created_at": "2026-01-11T12:00:00Z"
+                }
+            ]
+        }
+        self.audit_logs: List[Dict[str, Any]] = []
+
+        # 768-dimensional Seed Resource Chunks for RAG (§11, §12)
+        self.resource_chunks: List[Dict[str, Any]] = [
+            {
+                "id": "chunk-1",
+                "resource_id": "res-1",
+                "content": "Hierarchical Navigable Small World (HNSW) graphs organize high-dimensional vectors into multi-layer skip-list graphs. Cosine similarity vs dot product: normalized vectors turn dot product into cosine similarity with lower compute overhead.",
+                "metadata": {
+                    "title": "HNSW Vector Indexing & Distance Metrics",
+                    "creator": "Andrej Karpathy",
+                    "category": "AI/ML",
+                    "url": "https://youtube.com/playlist?list=PLAqhIrjkxbuWI23v9C86AOgPWL4aRMXk1"
+                }
+            },
+            {
+                "id": "chunk-2",
+                "resource_id": "res-2",
+                "content": "Fixed-size chunking with 256-512 tokens and 10-20% overlap balances semantic completeness against context window limits. For structured markdown data, header-aware splitting prevents table truncation in vector databases.",
+                "metadata": {
+                    "title": "Optimal Chunking Strategies for Production RAG",
+                    "creator": "Harrison Chase",
+                    "category": "RAG / AI",
+                    "url": "https://youtube.com/watch?v=kYkyf_G0i5I"
+                }
+            },
+            {
+                "id": "chunk-3",
+                "resource_id": "res-3",
+                "content": "FastAPI runs async def endpoints directly on the asyncio event loop. Never call blocking I/O (time.sleep, synchronous requests.get, or sync DB drivers) in async def. Use def for synchronous threadpool execution or use httpx.AsyncClient and asyncpg.",
+                "metadata": {
+                    "title": "FastAPI Asynchronous Concurrency Deep Dive",
+                    "creator": "Tiangolo",
+                    "category": "Backend",
+                    "url": "https://fastapi.tiangolo.com"
+                }
+            },
+            {
+                "id": "chunk-4",
+                "resource_id": "res-4",
+                "content": "Autonomous ReAct agents require strict structured JSON contracts, deterministic tool dispatch, and step-level reflection. Always ground agent memory with verified session state rather than unbounded token history.",
+                "metadata": {
+                    "title": "Building Reliable ReAct Autonomous Agents",
+                    "creator": "Chip Huyen",
+                    "category": "Agentic AI",
+                    "url": "https://chiphuyen.com"
+                }
+            }
+        ]
+
 db = InMemoryDatabase()
+

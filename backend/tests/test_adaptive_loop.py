@@ -105,9 +105,10 @@ async def run_tests():
     # Test 6: Semantic Knowledge Search (RAG Tool)
     # -------------------------------------------------------------------------
     print("\n[TEST 6] Testing Semantic Knowledge Search (RAG)...")
-    rag_res = rag_service.search_knowledge("HNSW vector indexing tradeoff memory", top_k=2)
+    rag_res = await rag_service.search_knowledge("HNSW vector indexing tradeoff memory", top_k=2)
     assert len(rag_res) >= 1, "Expected at least 1 knowledge match"
-    print(f"✓ Retrieved Top Knowledge Result: '{rag_res[0]['title']}' by {rag_res[0]['creator']} (Score: {rag_res[0]['relevanceScore']})")
+    score = rag_res[0].get('similarity') or rag_res[0].get('relevanceScore', 1.0)
+    print(f"✓ Retrieved Top Knowledge Result: '{rag_res[0]['title']}' by {rag_res[0]['creator']} (Score: {score})")
 
     # -------------------------------------------------------------------------
     # Test 7: Multi-Agent Orchestrator Routing

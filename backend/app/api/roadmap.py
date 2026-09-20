@@ -10,12 +10,18 @@ router = APIRouter(tags=["roadmap"])
 async def get_roadmap(user: dict = Depends(get_current_user)):
     """
     Returns the student's active personalized roadmap from database/Supabase.
+    Strict Tenant Isolation (§47): If a new user does not have a roadmap,
+    generates their personalized adaptive roadmap grounded in their profile.
     """
     user_id = user["id"]
     roadmap = await supabase_service.get_current_roadmap(user_id)
     if not roadmap:
-        # Fallback to default user-1 roadmap if new session
-        roadmap = await supabase_service.get_current_roadmap("user-1")
+        from app.agents.learning_agent import learning_agent
+        context = await build_student_context(user_id)
+        res = await learning_agent.generate_adaptive_roadmap(context)
+        roadmap = await supabase_service.get_current_roadmap(user_id)
+        if not roadmap and isinstance(res, dict) and "stages" in res:
+            roadmap = res
     return roadmap
 
 @router.post("/progress")

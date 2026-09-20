@@ -549,4 +549,49 @@ class GeminiService:
 
         return {"text": text, "source": "deterministic-engine"}
 
+    # =========================================================================
+    # 7. Dense 768-dim Vector Embeddings (Schema v2 pgvector RAG §11, §12)
+    # =========================================================================
+    async def generate_embedding(self, text: str) -> List[float]:
+        """
+        Generates 768-dimensional dense vector embeddings using text-embedding-004.
+        Matches public.resource_chunks and public.document_chunks schemas.
+        Falls back gracefully to a deterministic normalized unit vector when offline.
+        """
+        client = self._get_client()
+        if client:
+            try:
+                response = client.models.embed_content(
+                    model="text-embedding-004",
+                    contents=text
+                )
+                if hasattr(response, "embeddings") and response.embeddings:
+                    return response.embeddings[0].values
+                elif hasattr(response, "embedding") and hasattr(response.embedding, "values"):
+                    return response.embedding.values
+            except Exception as e:
+                print(f"[GeminiService] embed_content warning: {e}")
+
+        # Deterministic 768-dimensional normalized embedding fallback
+        import hashlib
+        import math
+        tokens = text.lower().split()
+        dim = 768
+        vec = [0.0] * dim
+        for idx, token in enumerate(tokens):
+            h = int(hashlib.md5(token.encode('utf-8')).hexdigest(), 16)
+            pos = h % dim
+            weight = 1.0 / (idx + 1) ** 0.5
+            vec[pos] += weight
+            vec[(pos + 384) % dim] += weight * 0.5
+
+        # Normalize to unit length for cosine similarity
+        norm = math.sqrt(sum(x * x for x in vec))
+        if norm > 0:
+            vec = [round(x / norm, 6) for x in vec]
+        else:
+            vec[0] = 1.0
+        return vec
+
 gemini_service = GeminiService()
+

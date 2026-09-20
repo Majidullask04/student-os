@@ -474,4 +474,199 @@ class SupabaseService:
         items = db.agent_memory.get(user_id, [])
         return items[-limit:]
 
+    # =========================================================================
+    # 10. Conversations & Persistent Chat Messages (Schema v2 §37)
+    # =========================================================================
+    async def get_or_create_conversation(self, user_id: str, title: str = "New conversation") -> Dict[str, Any]:
+        if self.is_connected():
+            try:
+                res = self.client.table("conversations").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+                new_conv = {"user_id": user_id, "title": title}
+                ins = self.client.table("conversations").insert(new_conv).execute()
+                if ins.data:
+                    return ins.data[0]
+            except Exception as e:
+                print(f"[Supabase] get_or_create_conversation error: {e}")
+
+        # In-memory fallback
+        user_convs = db.conversations.get(user_id, [])
+        if user_convs:
+            return user_convs[0]
+        new_c = {
+            "id": f"conv-{uuid.uuid4().hex[:8]}",
+            "user_id": user_id,
+            "title": title,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        if user_id not in db.conversations:
+            db.conversations[user_id] = []
+        db.conversations[user_id].append(new_c)
+        return new_c
+
+    async def get_conversation_messages(self, conversation_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        if self.is_connected():
+            try:
+                res = self.client.table("messages").select("*").eq("conversation_id", conversation_id).order("created_at", asc=True).limit(limit).execute()
+                if res.data:
+                    return res.data
+            except Exception as e:
+                print(f"[Supabase] get_conversation_messages error: {e}")
+
+        return db.messages.get(conversation_id, [])
+
+    async def add_message(
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
+        tool_calls: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
+        msg = {
+            "id": f"msg-{uuid.uuid4().hex[:8]}",
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content,
+            "tool_calls": tool_calls or [],
+            "created_at": datetime.utcnow().isoformat()
+        }
+        if conversation_id not in db.messages:
+            db.messages[conversation_id] = []
+        db.messages[conversation_id].append(msg)
+
+        if self.is_connected():
+            try:
+                self.client.table("messages").insert({
+                    "conversation_id": conversation_id,
+                    "role": role,
+                    "content": content,
+                    "tool_calls": tool_calls or []
+                }).execute()
+            except Exception as e:
+                print(f"[Supabase] add_message error: {e}")
+        return msg
+
+    # =========================================================================
+    # 11. Agent Observability (§42, §52)
+    # =========================================================================
+    async def record_agent_run(
+        self,
+        user_id: str,
+        agent_name: str,
+        input_summary: str,
+        tools_used: List[str],
+        status: str = "success",
+        latency_ms: Optional[int] = None,
+        tokens_used: int = 0,
+        cost_usd: float = 0.0
+    ) -> str:
+        run_id = f"run-{uuid.uuid4().hex[:8]}"
+        run_record = {
+            "id": run_id,
+            "user_id": user_id,
+            "agent_name": agent_name,
+            "input_summary": input_summary[:200],
+            "tools_used": tools_used,
+            "status": status,
+            "latency_ms": latency_ms or 0,
+            "tokens_used": tokens_used,
+            "cost_usd": cost_usd,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        db.agent_runs[run_id] = run_record
+
+        if self.is_connected():
+            try:
+                res = self.client.table("agent_runs").insert({
+                    "user_id": user_id,
+                    "agent_name": agent_name,
+                    "input_summary": input_summary[:200],
+                    "tools_used": tools_used,
+                    "status": status,
+                    "latency_ms": latency_ms,
+                    "tokens_used": tokens_used,
+                    "cost_usd": cost_usd
+                }).execute()
+                if res.data:
+                    return res.data[0].get("id", run_id)
+            except Exception as e:
+                print(f"[Supabase] record_agent_run error: {e}")
+
+        return run_id
+
+    async def record_tool_call(
+        self,
+        run_id: str,
+        tool_name: str,
+        input_json: Dict[str, Any],
+        output_json: Dict[str, Any],
+        latency_ms: int,
+        status: str = "success"
+    ) -> Dict[str, Any]:
+        tc_record = {
+            "id": f"tc-{uuid.uuid4().hex[:8]}",
+            "run_id": run_id,
+            "tool_name": tool_name,
+            "input_json": input_json,
+            "output_json": output_json,
+            "latency_ms": latency_ms,
+            "status": status,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        if run_id not in db.tool_calls:
+            db.tool_calls[run_id] = []
+        db.tool_calls[run_id].append(tc_record)
+
+        if self.is_connected():
+            try:
+                self.client.table("tool_calls").insert({
+                    "run_id": run_id,
+                    "tool_name": tool_name,
+                    "input_json": input_json,
+                    "output_json": output_json,
+                    "latency_ms": latency_ms,
+                    "status": status
+                }).execute()
+            except Exception as e:
+                print(f"[Supabase] record_tool_call error: {e}")
+
+        return tc_record
+
+    # =========================================================================
+    # 12. Audit Logs (§77)
+    # =========================================================================
+    async def record_audit_log(
+        self,
+        user_id: Optional[str],
+        action: str,
+        entity_type: Optional[str] = None,
+        entity_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        ip_address: Optional[str] = None
+    ):
+        log_record = {
+            "id": f"audit-{uuid.uuid4().hex[:8]}",
+            "user_id": user_id,
+            "action": action,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "metadata": metadata or {},
+            "ip_address": ip_address,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        db.audit_logs.append(log_record)
+
+        if self.is_connected():
+            try:
+                self.client.table("audit_logs").insert({
+                    "user_id": user_id,
+                    "action": action,
+                    "entity_type": entity_type,
+                    "entity_id": entity_id,
+                    "metadata": metadata or {}
+                }).execute()
+            except Exception as e:
+                print(f"[Supabase] record_audit_log error: {e}")
+
 supabase_service = SupabaseService()

@@ -33,6 +33,17 @@ async def root():
     return {
         "service": "Student OS API",
         "status": "online",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "docs": "/docs"
+    }
+
+@app.get("/health")
+async def health_check():
+    from app.services.supabase_service import supabase_service
+    from datetime import datetime
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "database": "connected" if supabase_service.is_connected() else "in-memory-active",
+        "version": "2.0.0"
     }

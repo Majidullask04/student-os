@@ -93,6 +93,14 @@ class LearningAgent:
             "roadmap": saved_roadmap
         }
 
+    async def generate_adaptive_roadmap(self, student_context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Direct helper to generate, persist and return the adaptive roadmap from student context.
+        """
+        user_id = student_context.get("profile", {}).get("id", "user-1")
+        res = await self.analyze_student_profile(user_id)
+        return res.get("roadmap") or {}
+
     # =========================================================================
     # 2. Tool-Aware Conversational Chat ("What should I learn today?")
     # =========================================================================
