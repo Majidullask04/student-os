@@ -5,7 +5,6 @@ import {
   CheckCircle2, 
   Minus, 
   Check, 
-  Sparkles, 
   Play, 
   ExternalLink, 
   Lightbulb, 
@@ -15,17 +14,19 @@ import {
   SlidersHorizontal,
   LayoutGrid,
   ListFilter,
-  Star
+  Star,
+  Compass
 } from 'lucide-react';
 import { YoutubeIcon } from '../components/ui/BrandIcons';
 import { api } from '../services/api';
-import { Creator } from '../types';
+import { Creator, Profile } from '../types';
 import { mockCreators } from '../mocks/data';
 import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
 
 export const Creators: React.FC = () => {
   const [creators, setCreators] = useState<Creator[]>(mockCreators);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [onlyRoadmapRelevant, setOnlyRoadmapRelevant] = useState<boolean>(true);
@@ -55,6 +56,7 @@ export const Creators: React.FC = () => {
 
   useEffect(() => {
     api.getCreators().then(setCreators);
+    api.getProfile().then(setProfile);
   }, []);
 
   const handleToggleFollow = (creatorId: string) => {
@@ -104,17 +106,16 @@ export const Creators: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4 self-end md:self-center shrink-0">
-            <div className="text-right hidden sm:block">
-              <p className="font-handwriting text-base font-bold text-indigo-700">Real creators.</p>
-              <p className="font-handwriting text-base font-bold text-purple-700">Real learning. Real progress.</p>
-            </div>
-            <div className="p-3.5 rounded-2xl bg-white/90 border border-indigo-100 shadow-sm flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6" />
+            <div className="px-4 py-3 rounded-xl bg-white/90 border border-slate-200/80 shadow-2xs flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100/60 text-indigo-600 flex items-center justify-center">
+                <GraduationCap className="w-5 h-5" />
               </div>
-              <p className="text-xs font-medium text-slate-700 max-w-[200px] leading-snug">
-                &ldquo;Good creators give you knowledge. Great creators give you direction.&rdquo;
-              </p>
+              <div className="text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ecosystem</span>
+                <p className="text-xs font-bold text-slate-800">
+                  {creators.length} Industry Leaders Verified
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -294,15 +295,15 @@ export const Creators: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5" />
+              <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                <Compass className="w-3.5 h-3.5" />
               </div>
               <h2 className="text-base font-bold text-slate-900">
                 Creators for Your Path
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Based on your goal: <strong className="text-indigo-600">AI Engineer</strong>
+              Based on your target specialization: <strong className="text-indigo-600">{profile?.goal || 'Engineering Track'}</strong>
             </p>
           </div>
 
@@ -417,11 +418,9 @@ export const Creators: React.FC = () => {
             </div>
 
             <div className="text-right">
-              <p className="font-handwriting text-lg text-indigo-700 font-bold -rotate-1">
-                Different creators.
-              </p>
-              <p className="font-handwriting text-xl text-purple-700 font-extrabold -rotate-2">
-                A better you.
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Synergy Metric</span>
+              <p className="text-xs font-bold text-slate-800">
+                Multi-Creator Knowledge Aggregation
               </p>
             </div>
           </div>

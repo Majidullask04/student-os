@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Server, Key, User, Shield, CheckCircle2 } from 'lucide-react';
 import { api } from '../services/api';
-import { mockProfile } from '../mocks/data';
 import confetti from 'canvas-confetti';
 
 export const Settings: React.FC = () => {
-  const [profile, setProfile] = useState(mockProfile);
-  const [name, setName] = useState(mockProfile.name);
-  const [goal, setGoal] = useState(mockProfile.goal);
+  const [name, setName] = useState('');
+  const [goal, setGoal] = useState('');
   const [apiUrl, setApiUrl] = useState(import.meta.env.VITE_API_URL || 'http://localhost:8000');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
     api.getProfile().then(p => {
-      setProfile(p);
-      setName(p.name);
-      setGoal(p.goal);
+      if (p) {
+        setName(p.name || '');
+        setGoal(p.goal || '');
+      }
     });
   }, []);
 

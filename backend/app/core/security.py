@@ -12,9 +12,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     """
     Extracts and validates JWT access tokens.
     Supports Supabase cloud JWTs and local development tokens.
-    Falls back gracefully to a default test student in dev mode when token is absent.
+    In production (or when ENFORCE_AUTH is true), strictly enforces 401 Unauthorized
+    on missing, expired, or invalid signatures.
     """
     if not credentials:
+        if settings.ENFORCE_AUTH:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         return {
             "id": "00000000-0000-0000-0000-000000000001",
             "email": "student@studentos.dev",
@@ -44,7 +51,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except Exception:
         pass
 
-    # 2. If signature fails (e.g. issued by remote Supabase without local secret sync), decode unverified
+    # 2. In production or enforced environments, reject invalid signatures
+    if settings.ENFORCE_AUTH:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 3. Development/Local test fallback for mock or unverified tokens
     try:
         claims = jwt.get_unverified_claims(token)
         user_id = claims.get("sub", "00000000-0000-0000-0000-000000000001")

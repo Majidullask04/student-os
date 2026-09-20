@@ -93,7 +93,7 @@ class InMemoryDatabase:
                 "id": "hiteshchoudhary",
                 "name": "Hitesh Choudhary",
                 "handle": "@hiteshdotcom",
-                "avatar_url": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
+                "avatar_url": "https://avatars.githubusercontent.com/u/11613311?v=4",
                 "verified": True,
                 "followers": "920K",
                 "platform": "YouTube",
@@ -102,24 +102,67 @@ class InMemoryDatabase:
                 "featured_series": ["Chai aur Python", "Chai aur Code Backend Series", "Production System Design"],
                 "why_relevant": "Delivers in-depth, production-oriented backend courses covering API design, authentication, and database schemas.",
                 "viewpoint": "Master the backend and database architecture first; learn how to structure scalable REST and WebSocket APIs."
+            },
+            "theprimeagen": {
+                "id": "theprimeagen",
+                "name": "ThePrimeagen",
+                "handle": "@ThePrimeagen",
+                "avatar_url": "https://avatars.githubusercontent.com/u/4198211?v=4",
+                "verified": True,
+                "followers": "680K",
+                "platform": "YouTube",
+                "bio": "Ex-Netflix engineer. Deep dives into high-performance computing, data structures, and software engineering.",
+                "tags": ["DSA", "Algorithms", "Go", "Rust", "Neovim"],
+                "featured_series": ["The Last Algorithms Course You'll Need", "Full Stack Go & HTMX", "Code Reviews"],
+                "why_relevant": "Essential for DSA, low-level performance, and writing clean, scalable software.",
+                "viewpoint": "Understand your tools deeply. Write efficient code, benchmark constantly, and don't rely on blind abstractions."
+            },
+            "georgehotz": {
+                "id": "georgehotz",
+                "name": "George Hotz (Geohot)",
+                "handle": "@georgehotz",
+                "avatar_url": "https://avatars.githubusercontent.com/u/72895?v=4",
+                "verified": True,
+                "followers": "450K",
+                "platform": "YouTube",
+                "bio": "Founder of comma.ai and creator of tinygrad. Teaches building neural network frameworks from raw Python and C.",
+                "tags": ["Deep Learning", "tinygrad", "GPU", "From Scratch"],
+                "featured_series": ["Programming a Deep Learning Framework", "tinygrad Architecture", "Open Source Autopilot"],
+                "why_relevant": "The ultimate deep-dive into how GPU tensors, autodiff, and transformer execution graphs actually work.",
+                "viewpoint": "Write tiny, readable code. If you cannot implement backpropagation in 200 lines, you don't understand it."
+            },
+            "rasbt": {
+                "id": "rasbt",
+                "name": "Sebastian Raschka",
+                "handle": "@rasbt",
+                "avatar_url": "https://avatars.githubusercontent.com/u/5618407?v=4",
+                "verified": True,
+                "followers": "280K",
+                "platform": "GitHub / Research",
+                "bio": "Author of Build a Large Language Model From Scratch and Machine Learning Q and AI. PyTorch researcher.",
+                "tags": ["LLMs", "PyTorch", "Research", "Fine-Tuning"],
+                "featured_series": ["Build a Large Language Model from Scratch", "LoRA Fine-Tuning", "Deep Learning Research"],
+                "why_relevant": "Step-by-step code implementations of attention, multi-head attention, and pretraining in PyTorch.",
+                "viewpoint": "Understand and build every layer in pure PyTorch before relying on higher-level libraries."
             }
         }
 
         self.followed_creators: Dict[str, List[str]] = {
-            "user-1": ["karpathy", "kunalkushwaha", "fireship", "hiteshchoudhary"]
+            "user-1": ["karpathy", "kunalkushwaha", "fireship", "hiteshchoudhary", "theprimeagen", "georgehotz"]
         }
 
         self.resources: List[Dict[str, Any]] = [
             {
                 "id": "res-1",
-                "title": "Build a Complete RAG App with LangChain & ChromaDB",
+                "title": "Build a Complete RAG App with LangChain & Vector DB",
                 "platform": "YouTube Video",
                 "creator": "codebasics",
                 "category": "AI / ML",
                 "tags": ["AI / LLMs", "RAG", "Vector Search", "LangChain"],
                 "difficulty": "Intermediate",
                 "duration": "1h 12m",
-                "url": "https://youtube.com/watch?v=sample1",
+                "url": "https://www.youtube.com/watch?v=mEsleV16qdo",
+                "thumbnailUrl": "https://img.youtube.com/vi/mEsleV16qdo/hqdefault.jpg",
                 "rating": 4.9,
                 "why_recommended": "Directly bridges your Python skills to vector database retrieval and prompt augmentation."
             },
@@ -132,7 +175,8 @@ class InMemoryDatabase:
                 "tags": ["Backend", "FastAPI", "APIs", "PostgreSQL"],
                 "difficulty": "Beginner",
                 "duration": "3h 12m",
-                "url": "https://youtube.com/watch?v=sample2",
+                "url": "https://www.youtube.com/watch?v=7eh4d6sabA0",
+                "thumbnailUrl": "https://img.youtube.com/vi/7eh4d6sabA0/hqdefault.jpg",
                 "rating": 4.9,
                 "why_recommended": "Strengthens backend API foundations needed before serving LLM endpoints."
             },
@@ -145,7 +189,8 @@ class InMemoryDatabase:
                 "tags": ["AI / LLMs", "Deep Learning", "From Scratch"],
                 "difficulty": "Intermediate",
                 "duration": "2h 25m",
-                "url": "https://youtube.com/watch?v=sample3",
+                "url": "https://www.youtube.com/watch?v=VMj-3S1tku0",
+                "thumbnailUrl": "https://img.youtube.com/vi/VMj-3S1tku0/hqdefault.jpg",
                 "rating": 5.0,
                 "why_recommended": "Teaches fundamental attention mechanics and gradient flow directly from Andrej Karpathy."
             },
@@ -158,35 +203,80 @@ class InMemoryDatabase:
                 "tags": ["DevOps", "Docker", "Containers"],
                 "difficulty": "Beginner",
                 "duration": "1h 45m",
-                "url": "https://youtube.com/watch?v=sample4",
+                "url": "https://www.youtube.com/watch?v=17X2_Vp4e9A",
+                "thumbnailUrl": "https://img.youtube.com/vi/17X2_Vp4e9A/hqdefault.jpg",
                 "rating": 4.8,
                 "why_recommended": "Essential for containerizing your AI agent backend and deploying reproducible microservices."
             },
             {
                 "id": "res-5",
-                "title": "Vector Databases Explained: Embeddings, Cosine Similarity & Indexing",
-                "platform": "Article & Guide",
+                "title": "Vector Databases in 100 Seconds",
+                "platform": "YouTube Video",
                 "creator": "fireship",
                 "category": "AI / ML",
                 "tags": ["RAG", "Vector Databases", "Embeddings"],
                 "difficulty": "Beginner",
-                "duration": "45m",
-                "url": "https://fireship.io/lessons/sample5",
+                "duration": "2m 15s",
+                "url": "https://www.youtube.com/watch?v=klTvEwg3oJ4",
+                "thumbnailUrl": "https://img.youtube.com/vi/klTvEwg3oJ4/hqdefault.jpg",
                 "rating": 4.9,
                 "why_recommended": "Fast, visual breakdown of embedding space and vector similarity math."
             },
             {
                 "id": "res-6",
-                "title": "Building Autonomous AI Agents with Tool Calling & ReAct Pattern",
+                "title": "Let's build GPT: from scratch, in code, spelled out",
                 "platform": "YouTube Video",
-                "creator": "codebasics",
+                "creator": "karpathy",
                 "category": "AI / ML",
-                "tags": ["AI Agents", "Function Calling", "Gemini", "Python"],
+                "tags": ["Transformers", "GPT", "Attention", "PyTorch"],
                 "difficulty": "Advanced",
-                "duration": "1h 35m",
-                "url": "https://youtube.com/watch?v=sample6",
-                "rating": 4.9,
-                "why_recommended": "Teaches the exact tool-calling and reasoning loops you need for advanced AI Engineer roles."
+                "duration": "1h 56m",
+                "url": "https://www.youtube.com/watch?v=kCc8FmEb1nY",
+                "thumbnailUrl": "https://img.youtube.com/vi/kCc8FmEb1nY/hqdefault.jpg",
+                "rating": 5.0,
+                "why_recommended": "Complete code walk-through building GPT from scratch with self-attention heads."
+            },
+            {
+                "id": "res-7",
+                "title": "The Last Algorithms Course You'll Need",
+                "platform": "YouTube Video",
+                "creator": "theprimeagen",
+                "category": "DSA",
+                "tags": ["Algorithms", "Data Structures", "Performance", "TypeScript"],
+                "difficulty": "Intermediate",
+                "duration": "9h 30m",
+                "url": "https://www.youtube.com/watch?v=RBSGKlAnoiM",
+                "thumbnailUrl": "https://img.youtube.com/vi/RBSGKlAnoiM/hqdefault.jpg",
+                "rating": 5.0,
+                "why_recommended": "High-intensity mastery of search, sort, trees, graphs, and Big-O analysis."
+            },
+            {
+                "id": "res-8",
+                "title": "tinygrad: Deep Learning Framework from Scratch",
+                "platform": "GitHub Repository",
+                "creator": "georgehotz",
+                "category": "AI / ML",
+                "tags": ["Deep Learning", "tinygrad", "GPU", "From Scratch"],
+                "difficulty": "Advanced",
+                "duration": "29.5k stars",
+                "url": "https://github.com/tinygrad/tinygrad",
+                "thumbnailUrl": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400",
+                "rating": 5.0,
+                "why_recommended": "Minimalist deep learning framework illustrating tensor operations and GPU kernels."
+            },
+            {
+                "id": "res-9",
+                "title": "LLMs-from-scratch in PyTorch",
+                "platform": "GitHub Repository",
+                "creator": "rasbt",
+                "category": "AI / ML",
+                "tags": ["LLMs", "PyTorch", "From Scratch", "Deep Learning"],
+                "difficulty": "Advanced",
+                "duration": "45.2k stars",
+                "url": "https://github.com/rasbt/LLMs-from-scratch",
+                "thumbnailUrl": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=400",
+                "rating": 5.0,
+                "why_recommended": "Step-by-step book and codebase implementing attention and generative transformers."
             }
         ]
 

@@ -5,7 +5,7 @@ import {
   Send, 
   Paperclip, 
   ChevronDown, 
-  Sparkles, 
+  Cpu, 
   Clock, 
   BarChart2, 
   Target, 
@@ -25,17 +25,17 @@ import {
 import { YoutubeIcon } from '../components/ui/BrandIcons';
 import { ToolCallCard } from '../components/ui/ToolCallCard';
 import { Skeleton } from '../components/ui/Skeleton';
-import { api } from '../services/api';
-import { ChatMessage, Profile } from '../types';
-import { mockProfile, mockInitialMessages, mockChatHistory } from '../mocks/data';
+import { api, getDynamicFallbackProfile } from '../services/api';
+import { ChatMessage, Profile, Roadmap } from '../types';
 
 export const Assistant: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialPrompt = searchParams.get('prompt');
 
-  const [messages, setMessages] = useState<ChatMessage[]>(mockInitialMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [profile, setProfile] = useState<Profile>(mockProfile);
+  const [profile, setProfile] = useState<Profile>(getDynamicFallbackProfile());
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
   const [selectedModel, setSelectedModel] = useState('GPT-4o');
   const [isTyping, setIsTyping] = useState(false);
   const [activeHistoryId, setActiveHistoryId] = useState('c-1');
@@ -47,9 +47,25 @@ export const Assistant: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const createWelcomeMessage = (p: Profile): ChatMessage => ({
+    id: 'msg_welcome_' + Date.now(),
+    sender: 'assistant',
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    text: `Hello ${p.name}! I am your personal AI learning agent. I've analyzed your target goal of becoming a ${p.goal} and I'm ready to guide your learning roadmap, evaluate skill gaps, and prepare you for technical interviews. What would you like to work on today?`,
+  });
+
   useEffect(() => {
-    api.getProfile().then(setProfile);
-    api.getChatHistory().then(setMessages);
+    api.getProfile().then(p => {
+      setProfile(p);
+      api.getChatHistory().then(history => {
+        if (history && history.length > 0) {
+          setMessages(history);
+        } else {
+          setMessages([createWelcomeMessage(p)]);
+        }
+      });
+    });
+    api.getRoadmap().then(setRoadmap);
   }, []);
 
   useEffect(() => {
@@ -88,35 +104,53 @@ export const Assistant: React.FC = () => {
   };
 
   const handleNewChat = () => {
-    setMessages([mockInitialMessages[0]]);
+    setMessages([createWelcomeMessage(profile)]);
   };
 
-  const handleClearChats = () => {
-    setMessages([mockInitialMessages[0]]);
+  const handleClearChats = async () => {
+    await api.clearChatHistory();
+    setMessages([createWelcomeMessage(profile)]);
   };
+
+  const activeStage = roadmap?.stages?.find(s => s.status === 'In Progress' || s.status === 'Next') || roadmap?.stages?.[0];
+  const activeModule = roadmap?.modules?.find(m => m.status === 'In Progress' || m.percentage < 100) || roadmap?.modules?.[0];
+  const userQueries = messages.filter(m => m.sender === 'user').map(m => m.text);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs shrink-0 ring-1 ring-slate-800">
             <Bot className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              AI Learning Agent
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                AI Learning Agent
+              </h1>
+              <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/70">
+                v2.4 Kernel
+              </span>
+            </div>
             <p className="text-xs text-slate-500 font-medium">
-              Autonomous reasoning, roadmap synthesis, and interview preparation.
+              Autonomous reasoning, roadmap synthesis, and live RAG retrieval.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Engineering Telemetry Badge */}
+          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-[11px] font-mono text-slate-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Gemini 2.5 Flash</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-500">28ms</span>
+          </div>
+
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:translate-y-[1px] text-white text-xs font-semibold shadow-xs transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Chat</span>
@@ -129,51 +163,40 @@ export const Assistant: React.FC = () => {
         {/* Left Column (3 cols): Chat History */}
         <div className="hidden lg:block lg:col-span-3 bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold text-slate-900">Chat History</h2>
+            <h2 className="text-xs font-bold text-slate-900">Recent Prompts</h2>
             <Search className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
           <div className="space-y-4 max-h-[640px] overflow-y-auto pr-1">
-            {['Today', 'Yesterday', 'Last 7 days'].map((group) => {
-              const items = mockChatHistory.filter(h => h.group === group);
-              if (items.length === 0) return null;
-
-              return (
-                <div key={group} className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-400 px-2 block uppercase tracking-wider">
-                    {group}
-                  </span>
-                  {items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveHistoryId(item.id);
-                        handleSendMessage(item.title);
-                      }}
-                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium transition flex items-center justify-between group ${
-                        activeHistoryId === item.id
-                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                          : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="truncate max-w-[150px]">{item.title}</span>
-                      <span className="text-[10px] text-slate-400 group-hover:text-slate-500 shrink-0">
-                        {item.time}
-                      </span>
-                    </button>
-                  ))}
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold text-slate-400 px-2 block uppercase tracking-wider">
+                This Session
+              </span>
+              {userQueries.slice(-8).reverse().map((prompt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendMessage(prompt)}
+                  className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium transition flex items-center justify-between group text-slate-600 hover:bg-slate-50"
+                >
+                  <span className="truncate max-w-[170px]">{prompt}</span>
+                  <ChevronRight className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 shrink-0" />
+                </button>
+              ))}
+              {userQueries.length === 0 && (
+                <div className="px-2 py-3 text-center text-xs text-slate-400">
+                  No previous prompts yet. Ask anything to start!
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
 
           <div className="pt-2 border-t border-slate-100">
             <button
               onClick={handleClearChats}
-              className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-red-600 transition px-2 py-1 w-full"
+              className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-red-600 transition px-2 py-1 w-full cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear all chats</span>
+              <span>Clear conversation</span>
             </button>
           </div>
         </div>
@@ -196,11 +219,9 @@ export const Assistant: React.FC = () => {
                       <Bot className="w-4 h-4" />
                     </div>
                   ) : (
-                    <img
-                      src="/student-avatar.jpg"
-                      alt="User"
-                      className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 ring-2 ring-indigo-500/20"
-                    />
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 ring-2 ring-indigo-500/20 select-none">
+                      {profile.name.charAt(0).toUpperCase()}
+                    </div>
                   )}
 
                   {/* Message bubble */}
@@ -265,8 +286,8 @@ export const Assistant: React.FC = () => {
                             className="w-full flex items-center justify-between p-2.5 bg-slate-50/70 hover:bg-slate-50 text-xs font-semibold text-slate-800 transition"
                           >
                             <span className="flex items-center gap-2">
-                              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                              Why this recommendation?
+                              <Cpu className="w-3.5 h-3.5 text-indigo-600" />
+                              Technical rationale
                             </span>
                             {expandedSection === 'why' ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
                           </button>
@@ -478,27 +499,32 @@ export const Assistant: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <span className="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                3
+                {activeStage?.stageNumber || 1}
               </span>
               <div>
-                <h4 className="text-xs font-bold text-slate-900">AI & LLMs</h4>
-                <p className="text-[10px] text-slate-500">Learn core AI concepts, LLMs, and RAG</p>
+                <h4 className="text-xs font-bold text-slate-900">{activeStage?.title || 'Foundations'}</h4>
+                <p className="text-[10px] text-slate-500">{activeModule?.description || `Master core ${profile.goal} milestones`}</p>
               </div>
             </div>
 
             <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: '33%' }} />
+              <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${activeModule?.percentage || 0}%` }} />
             </div>
-            <span className="text-[10px] text-slate-400 block -mt-1">2 / 6 completed (33%)</span>
+            <span className="text-[10px] text-slate-400 block -mt-1">
+              {activeModule?.completedTasks || 0} / {activeModule?.totalTasks || 1} completed ({activeModule?.percentage || 0}%)
+            </span>
 
             <div className="pt-2 border-t border-slate-100 space-y-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Next up:</span>
               <ol className="text-xs space-y-1 text-slate-600">
-                <li className="font-semibold text-indigo-600">1. Vector Databases (Current)</li>
-                <li>2. Build a RAG application</li>
-                <li>3. Prompt engineering</li>
-                <li>4. Agent frameworks (LangChain)</li>
-                <li>5. Deploy an AI app</li>
+                {activeModule?.tasks?.slice(0, 4).map((t, idx) => (
+                  <li key={t.id} className={idx === 0 ? "font-semibold text-indigo-600" : ""}>
+                    {idx + 1}. {t.title}
+                  </li>
+                ))}
+                {(!activeModule?.tasks || activeModule.tasks.length === 0) && (
+                  <li className="text-slate-400 italic">No pending tasks in this stage.</li>
+                )}
               </ol>
             </div>
           </div>

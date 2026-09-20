@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Menu, X, CheckCircle, Flame, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Bell, Menu, X, LogOut, ChevronDown } from 'lucide-react';
 import { api } from '../../services/api';
-import { mockProfile } from '../../mocks/data';
 import { StudentOsLogo } from '../ui/StudentOsLogo';
+import { useAuth } from '../../context/AuthContext';
 
 interface TopBarProps {
   onOpenSearch: () => void;
@@ -11,14 +12,28 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, isSidebarOpen }) => {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [userName, setUserName] = useState(mockProfile.name);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [userName, setUserName] = useState(user?.user_metadata?.name || 'Student');
 
   useEffect(() => {
-    api.getProfile().then(p => {
-      if (p && p.name) setUserName(p.name);
-    });
-  }, []);
+    if (user?.user_metadata?.name) {
+      setUserName(user.user_metadata.name);
+    } else {
+      api.getProfile().then(p => {
+        if (p && p.name) setUserName(p.name);
+      });
+    }
+  }, [user]);
+
+  const handleLogout = async () => {
+    localStorage.removeItem('student_os_demo_guest');
+    localStorage.removeItem('student_os_auth_token');
+    await signOut();
+    navigate('/login');
+  };
 
   const notifications = [
     { id: '1', title: 'Roadmap Milestone reached!', desc: 'You completed 3 topics in Backend & APIs.', time: '10m ago', unread: true },
@@ -60,24 +75,33 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
 
       {/* Right Controls: Notifications & User Profile */}
       <div className="flex items-center gap-3 shrink-0">
+        {/* Telemetry pill */}
+        <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-mono text-slate-600">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span>Core v2.4 • Online</span>
+        </div>
+
         {/* Notification Bell */}
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="relative p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition btn-tactile"
             aria-label="Notifications"
           >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-600 rounded-full ring-2 ring-white"></span>
           </button>
 
           {/* Notifications Dropdown */}
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 sm:w-88 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 z-50 animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100 mb-2">
-                <span className="font-semibold text-sm text-slate-800">Notifications</span>
+                <span className="font-semibold text-xs text-slate-800 uppercase tracking-wider">Telemetry Notifications</span>
                 <span className="text-[11px] font-medium text-indigo-600 cursor-pointer hover:underline">
-                  Mark all as read
+                  Clear
                 </span>
               </div>
               <div className="space-y-1.5">
@@ -85,15 +109,15 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
                   <div
                     key={n.id}
                     className={`p-2.5 rounded-xl transition cursor-pointer ${
-                      n.unread ? 'bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-50'
+                      n.unread ? 'bg-indigo-50/40 hover:bg-indigo-50/70 border border-indigo-100/50' : 'hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className="w-2 h-2 rounded-full bg-indigo-600 mt-1.5 shrink-0" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-1.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-slate-800 leading-snug">{n.title}</p>
                         <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{n.desc}</p>
-                        <span className="text-[10px] text-slate-400 mt-1 block">{n.time}</span>
+                        <span className="text-[10px] text-slate-400 mt-1 block font-mono">{n.time}</span>
                       </div>
                     </div>
                   </div>
@@ -103,20 +127,55 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onToggleSidebar, i
           )}
         </div>
 
-        {/* User Card */}
-        <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-          <div className="relative">
-            <img
-              src="/student-avatar.jpg"
-              alt={mockProfile.name}
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-indigo-500/20"
-            />
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-          </div>
-          <div className="hidden sm:block text-left">
-            <span className="text-xs font-bold text-slate-800 block">Hi, {userName}</span>
-            <p className="text-[11px] font-medium text-slate-400">Keep going</p>
-          </div>
+        {/* User Card & Dropdown */}
+        <div className="relative pl-2 border-l border-slate-200">
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 transition focus:outline-none btn-tactile"
+            aria-label="User menu"
+          >
+            <div className="relative">
+              <div className="w-8 h-8 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center border border-slate-700 shadow-2xs">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
+            </div>
+            <div className="hidden sm:block text-left">
+              <span className="text-xs font-bold text-slate-800 block truncate max-w-[120px]">{userName}</span>
+              <p className="text-[10px] font-mono text-slate-400 truncate max-w-[120px]">
+                {user?.email || 'student@workspace'}
+              </p>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+          </button>
+
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                <p className="text-xs font-semibold text-slate-800">{userName}</p>
+                <p className="text-[11px] text-slate-500 truncate">{user?.email || 'Demo Mode (Offline)'}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  navigate('/settings');
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition"
+              >
+                Account Settings
+              </button>
+              <button
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleLogout();
+                }}
+                className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-xl transition mt-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

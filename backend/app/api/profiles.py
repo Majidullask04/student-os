@@ -29,7 +29,8 @@ async def get_profile(user: dict = Depends(get_current_user)):
         "interests": ["AI", "DevOps", "Full Stack"],
         "timeCommitmentHours": 2,
         "skills": ["Python", "FastAPI", "Git", "Docker"],
-        "followedCreatorIds": ["karpathy", "kunalkushwaha", "fireship", "hiteshchoudhary"]
+        "followedCreatorIds": ["karpathy", "kunalkushwaha", "fireship", "hiteshchoudhary"],
+        "onboardingCompleted": False
     }
     db.profiles[user_id] = default_profile
     return default_profile
@@ -47,7 +48,8 @@ async def save_profile(req: ProfileUpdate, user: dict = Depends(get_current_user
         "interests": ["AI", "DevOps", "Full Stack"],
         "timeCommitmentHours": 2,
         "skills": ["Python", "FastAPI", "Git", "Docker"],
-        "followedCreatorIds": ["karpathy", "kunalkushwaha", "fireship", "hiteshchoudhary"]
+        "followedCreatorIds": ["karpathy", "kunalkushwaha", "fireship", "hiteshchoudhary"],
+        "onboardingCompleted": False
     }
 
     updated = {**current, **req.model_dump(exclude_unset=True), "id": user_id}

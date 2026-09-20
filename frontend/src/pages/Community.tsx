@@ -6,7 +6,6 @@ import {
   Share2, 
   Send, 
   Pin, 
-  Sparkles, 
   Calendar, 
   Image, 
   Link as LinkIcon, 
@@ -19,11 +18,10 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CommunityPost } from '../types';
-import { mockCommunityPosts, mockProfile } from '../mocks/data';
 import confetti from 'canvas-confetti';
 
 export const Community: React.FC = () => {
-  const [posts, setPosts] = useState<CommunityPost[]>(mockCommunityPosts);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [activeTab, setActiveTab] = useState<'Feed' | 'Study Groups' | 'Events' | 'Find Buddies' | 'Creator Communities'>('Feed');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [newTitle, setNewTitle] = useState('');
@@ -289,7 +287,7 @@ export const Community: React.FC = () => {
           {/* AI Community Recommendations */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-600" />
+              <Users2 className="w-4 h-4 text-indigo-600" />
               <h3 className="text-xs font-bold text-slate-900">Recommended Study Groups</h3>
             </div>
 

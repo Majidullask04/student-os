@@ -1,0 +1,140 @@
+# .github/workflows/deploy-backend.yml
+#
+# main branch push  ->  run tests  ->  build Docker image  ->  push to ECR
+#                   ->  App Runner rolls out the new image  ->  smoke test /health
+#
+# One-time AWS setup is in AWS_SETUP.md. Required GitHub settings:
+#   Secret  AWS_ROLE_ARN            IAM role GitHub assumes via OIDC (no stored keys)
+#   Secret  APPRUNNER_SERVICE_ARN   ARN of the App Runner service (add after you create it)
+#   Variable AWS_REGION             optional, defaults to ap-south-1
+#
+# In the App Runner console set "Deployment trigger" to MANUAL: this workflow
+# triggers the deployment itself so it can wait for the result and fail loudly.
+
+name: Deploy backend to AWS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch: {}
+
+# Never run two deployments at once
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # OIDC login to AWS
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+  ECR_REPOSITORY: student-os-backend
+
+jobs:
+  test:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run all test suites
+        working-directory: backend
+        env:
+          PYTHONPATH: .
+        run: |
+          python tests/test_agent_flow.py
+          python tests/test_job_search_agent.py
+          python tests/test_adaptive_loop.py
+          python tests/test_personalization_eval.py
+          python tests/test_schema_v2_and_rag.py
+
+  deploy:
+    name: Build, push to ECR, deploy to App Runner
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      APPRUNNER_SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false   # plain image manifest, safest for App Runner
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to App Runner and wait
+        if: ${{ env.APPRUNNER_SERVICE_ARN != '' }}
+        run: |
+          set -euo pipefail
+          OP_ID=$(aws apprunner start-deployment \
+            --service-arn "$APPRUNNER_SERVICE_ARN" \
+            --query OperationId --output text)
+          echo "Started deployment operation: $OP_ID"
+
+          for i in $(seq 1 60); do
+            STATUS=$(aws apprunner list-operations \
+              --service-arn "$APPRUNNER_SERVICE_ARN" --max-results 20 \
+              --query "OperationSummaryList[?Id=='$OP_ID'].Status | [0]" \
+              --output text)
+            echo "[$i/60] deployment status: $STATUS"
+            case "$STATUS" in
+              SUCCEEDED) exit 0 ;;
+              FAILED|ROLLBACK_IN_PROGRESS|ROLLBACK_FAILED|ROLLBACK_SUCCEEDED)
+                echo "Deployment failed. Check App Runner logs in CloudWatch."
+                exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "Timed out waiting for deployment"
+          exit 1
+
+      - name: Smoke test /health
+        if: ${{ env.APPRUNNER_SERVICE_ARN != '' }}
+        run: |
+          set -euo pipefail
+          URL=$(aws apprunner describe-service \
+            --service-arn "$APPRUNNER_SERVICE_ARN" \
+            --query Service.ServiceUrl --output text)
+          echo "Service URL: https://$URL"
+          curl --fail --silent --show-error \
+            --retry 6 --retry-delay 10 --retry-all-errors \
+            "https://$URL/health"
+          echo

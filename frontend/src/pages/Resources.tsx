@@ -5,7 +5,7 @@ import {
   Bookmark, 
   Filter, 
   SlidersHorizontal, 
-  Sparkles, 
+  Compass, 
   Target, 
   Code2, 
   Layers, 
@@ -25,12 +25,11 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Resource, Profile } from '../types';
-import { mockResources, mockProfile } from '../mocks/data';
 import confetti from 'canvas-confetti';
 
 export const Resources: React.FC = () => {
-  const [resources, setResources] = useState<Resource[]>(mockResources);
-  const [profile, setProfile] = useState<Profile>(mockProfile);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedType, setSelectedType] = useState<string>('All Types');
   const [selectedLevel, setSelectedLevel] = useState<string>('All Levels');
@@ -63,8 +62,8 @@ export const Resources: React.FC = () => {
     });
   };
 
-  const filteredResources = resources.filter(res => {
-    if (selectedType !== 'All Types' && !res.platform.includes(selectedType.replace(' Videos', ''))) {
+  const filteredResources = (resources || []).filter(res => {
+    if (selectedType !== 'All Types' && !res.platform?.toLowerCase().includes(selectedType.replace(' Videos', '').toLowerCase())) {
       return false;
     }
     if (selectedLevel !== 'All Levels' && res.difficulty !== selectedLevel) {
@@ -73,9 +72,9 @@ export const Resources: React.FC = () => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        res.title.toLowerCase().includes(q) ||
-        res.creator.toLowerCase().includes(q) ||
-        res.tags.some(t => t.toLowerCase().includes(q))
+        (res.title || '').toLowerCase().includes(q) ||
+        (res.creator || '').toLowerCase().includes(q) ||
+        (res.tags || []).some(t => t.toLowerCase().includes(q))
       );
     }
     return true;
@@ -98,19 +97,15 @@ export const Resources: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 self-end md:self-center shrink-0">
-            <div className="p-3.5 rounded-2xl bg-white/90 border border-indigo-100 shadow-sm flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6" />
-              </div>
-              <div className="text-left">
-                <p className="font-handwriting text-base font-bold text-indigo-700">
-                  &ldquo;Learn from the best.&rdquo;
-                </p>
-                <p className="font-handwriting text-base font-bold text-purple-700">
-                  &ldquo;Build your future.&rdquo;
-                </p>
-              </div>
+          <div className="px-4 py-3 rounded-xl bg-white/90 border border-slate-200/80 shadow-2xs flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100/60 text-indigo-600 flex items-center justify-center">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div className="text-left">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Verified Index</span>
+              <p className="text-xs font-bold text-slate-800">
+                {resources.length} Engineering Tracks Indexed
+              </p>
             </div>
           </div>
         </div>
@@ -204,11 +199,11 @@ export const Resources: React.FC = () => {
           <div className="flex items-center justify-between px-1">
             <div>
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                Recommended for you
+                <Compass className="w-4 h-4 text-indigo-600" />
+                Targeted Curricula for Your Path
               </h2>
               <p className="text-[11px] text-slate-500">
-                Handpicked based on your goal, current skills, and roadmap progress.
+                Ranked by relevance against your current skill stack and active roadmap tasks.
               </p>
             </div>
             <span className="text-xs font-semibold text-indigo-600 cursor-pointer hover:underline">
@@ -226,7 +221,7 @@ export const Resources: React.FC = () => {
                 {/* Left Thumbnail & Info */}
                 <div className="flex items-center gap-3.5 flex-1 min-w-0">
                   <img
-                    src={res.thumbnailUrl}
+                    src={res.thumbnailUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400'}
                     alt=""
                     className="w-20 h-16 sm:w-24 sm:h-18 rounded-xl object-cover shrink-0 shadow-2xs group-hover:scale-102 transition"
                   />
@@ -251,7 +246,7 @@ export const Resources: React.FC = () => {
 
                     {/* Topic Chips */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {res.tags.map((tag) => (
+                      {(res.tags || []).map((tag) => (
                         <span key={tag} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
                           {tag}
                         </span>
@@ -299,8 +294,8 @@ export const Resources: React.FC = () => {
           {/* Why these resources? Card */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-xs font-bold text-slate-900">Why these resources?</h3>
+              <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-xs font-bold text-slate-900">Curriculum Matching Context</h3>
             </div>
             <p className="text-[11px] text-slate-500">
               These recommendations are personalized for you.
@@ -312,7 +307,7 @@ export const Resources: React.FC = () => {
                   <Target className="w-4 h-4 text-purple-600" />
                   <div>
                     <p className="text-[10px] text-slate-400">Your Goal</p>
-                    <p className="font-bold text-slate-800">Become an {profile.goal}</p>
+                    <p className="font-bold text-slate-800">Become an {profile?.goal || 'AI Engineer'}</p>
                   </div>
                 </div>
                 <span className="text-[11px] text-indigo-600 font-semibold cursor-pointer hover:underline">Edit</span>
@@ -323,7 +318,7 @@ export const Resources: React.FC = () => {
                   <Code2 className="w-4 h-4 text-emerald-600" />
                   <div>
                     <p className="text-[10px] text-slate-400">Your Current Skills</p>
-                    <p className="font-bold text-slate-800">Python, JavaScript, Docker, Git</p>
+                    <p className="font-bold text-slate-800">{profile?.skills?.join(', ') || 'Python, JavaScript, Docker, Git'}</p>
                   </div>
                 </div>
                 <span className="text-[11px] text-indigo-600 font-semibold cursor-pointer hover:underline">Edit</span>

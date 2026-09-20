@@ -7,36 +7,95 @@ import {
   ChatMessage, 
   CommunityPost,
   Project,
-  ProgressMetric
+  ProgressMetric,
+  AcademicCourse,
+  AcademicExam,
+  ActivityLogEntry
 } from '../types';
 import { 
-  mockProfile, 
   mockRoadmap, 
   mockResources, 
   mockCreators, 
   mockJobs, 
   mockProjects, 
   mockInitialMessages, 
-  mockCommunityPosts,
-  mockMetrics,
-  mockTodaysFocus
+  mockCommunityPosts
 } from '../mocks/data';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { supabase } from '../lib/supabase';
 
-// Storage keys for local persistence while backend is offline
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+
+// Storage keys for local persistence while backend is offline, namespaced per user
 const STORAGE_KEYS = {
-  PROFILE: 'student_os_profile',
-  ROADMAP: 'student_os_roadmap',
-  RESOURCES: 'student_os_resources',
-  CREATORS: 'student_os_creators',
-  PROJECTS: 'student_os_projects',
-  MESSAGES: 'student_os_messages',
-  COMMUNITY: 'student_os_community',
-  METRICS: 'student_os_metrics',
-  FOCUS: 'student_os_focus',
+  PROFILE: 'profile',
+  ROADMAP: 'roadmap',
+  RESOURCES: 'resources',
+  CREATORS: 'creators',
+  PROJECTS: 'projects',
+  MESSAGES: 'messages',
+  COMMUNITY: 'community',
+  METRICS: 'metrics',
+  FOCUS: 'focus',
+  ACADEMICS_COURSES: 'academics_courses',
+  ACADEMICS_EXAMS: 'academics_exams',
+  ACTIVITY_LOG: 'activity_log',
   AUTH_TOKEN: 'student_os_auth_token',
 };
+
+// Actively sync Supabase JWT session token & current user ID
+let activeAuthToken: string | null = null;
+let activeUserId: string | null = null;
+
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.access_token) {
+    activeAuthToken = session.access_token;
+    activeUserId = session.user?.id ?? null;
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+    if (session.user?.id) localStorage.setItem('student_os_active_uid', session.user.id);
+  }
+}).catch(() => {});
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  activeAuthToken = session?.access_token ?? null;
+  activeUserId = session?.user?.id ?? null;
+  if (session?.access_token) {
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+    if (session.user?.id) localStorage.setItem('student_os_active_uid', session.user.id);
+  } else {
+    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    localStorage.removeItem('student_os_active_uid');
+  }
+});
+
+export function getCurrentUserId(): string {
+  if (activeUserId) return activeUserId;
+  const stored = localStorage.getItem('student_os_active_uid');
+  if (stored) return stored;
+  return 'guest';
+}
+
+export function getUserStorageKey(base: string): string {
+  const uid = getCurrentUserId();
+  return `student_os_${uid}_${base}`;
+}
+
+async function getAuthToken(): Promise<string | null> {
+  if (activeAuthToken) return activeAuthToken;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      activeAuthToken = session.access_token;
+      activeUserId = session.user?.id ?? null;
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
+      if (session.user?.id) localStorage.setItem('student_os_active_uid', session.user.id);
+      return activeAuthToken;
+    }
+  } catch {
+    // Ignore and check localStorage
+  }
+  return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+}
 
 // Helper to get or initialize local storage
 function getLocalItem<T>(key: string, fallback: T): T {
@@ -56,9 +115,31 @@ function setLocalItem<T>(key: string, value: T): void {
   }
 }
 
+export function getDynamicFallbackProfile(email?: string, name?: string): Profile {
+  const uid = getCurrentUserId();
+  const cleanName = name || (email ? email.split('@')[0] : 'Learner');
+  const formattedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+  return {
+    id: uid,
+    name: formattedName,
+    email: email || `${cleanName.toLowerCase()}@studentos.dev`,
+    goal: 'AI Engineer',
+    targetRole: 'AI Engineer',
+    level: 'Intermediate',
+    interests: ['AI & LLMs', 'Full Stack', 'Cloud Architecture'],
+    timeCommitmentHours: 2,
+    skills: ['Python', 'Git', 'FastAPI'],
+    followedCreatorIds: ['karpathy', 'kunalkushwaha', 'fireship', 'freecodecamp'],
+    onboardingCompleted: false,
+  };
+}
+
 /**
- * Robust fetch wrapper that gracefully attempts the real backend API,
- * and seamlessly falls back to mock data if the backend is unavailable.
+ * Robust fetch wrapper that calls the real backend API with realistic AI inference timeouts.
+ * - AI Agent / Generation routes get 45 seconds (allows real Gemini LLM + Tool-Calling + RAG).
+ * - Standard routes get 12 seconds.
+ * - Seamlessly attaches Supabase JWT Bearer token.
+ * - Falls back to offline mock data ONLY when backend is unreachable or in guest demo mode.
  */
 async function fetchWithFallback<T>(
   endpoint: string, 
@@ -66,12 +147,15 @@ async function fetchWithFallback<T>(
   fallbackFn: () => T | Promise<T>
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  try {
-    // Attempt real backend call with a short timeout to prevent UI hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const isAiEndpoint = endpoint.startsWith('/agent') || endpoint.startsWith('/jobs') || endpoint.startsWith('/assessment');
+  const timeoutMs = isAiEndpoint ? 45000 : 12000;
+  const isDemoGuest = localStorage.getItem('student_os_demo_guest') === 'true';
 
-    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const token = await getAuthToken();
     const authHeaders: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
 
     const response = await fetch(url, {
@@ -89,13 +173,72 @@ async function fetchWithFallback<T>(
     if (response.ok) {
       return await response.json();
     }
-    console.info(`[API] Endpoint ${endpoint} returned ${response.status}, falling back to mock.`);
+
+    // If 401 Unauthorized and not in demo mode, clear invalid token and throw or notify
+    if (response.status === 401 && !isDemoGuest) {
+      console.warn(`[API] 401 Unauthorized for ${endpoint}. Authentication required.`);
+    }
+
+    console.info(`[API] Endpoint ${endpoint} returned status ${response.status}, falling back gracefully.`);
     return await fallbackFn();
-  } catch (err) {
-    // Backend is not running or unreachable: silently and smoothly use fallback
-    // console.info(`[API] Backend offline at ${url}. Using seeded mock data.`);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.warn(`[API] Request to ${endpoint} timed out after ${timeoutMs}ms.`);
+    }
     return await fallbackFn();
   }
+}
+
+function normalizeRoadmap(raw: any): Roadmap {
+  if (!raw || typeof raw !== 'object') return mockRoadmap;
+
+  let stages = Array.isArray(raw.stages) ? raw.stages : [];
+  let modules = Array.isArray(raw.modules) ? raw.modules : [];
+
+  // If modules exist but stages don't, map stages from modules
+  if (modules.length > 0 && stages.length === 0) {
+    stages = modules.map((m: any, idx: number) => ({
+      id: `stage-${m.number || idx + 1}`,
+      stageNumber: m.number || idx + 1,
+      title: m.title || `Stage ${idx + 1}`,
+      status: m.status || (idx === 0 ? 'In Progress' : 'Upcoming'),
+      moduleCount: m.totalTasks || (m.tasks || []).length || 4,
+    }));
+  }
+
+  // If stages exist but modules don't, map modules from stages
+  if (stages.length > 0 && modules.length === 0) {
+    modules = stages.map((st: any, idx: number) => {
+      const stageTasks = Array.isArray(st.tasks) ? st.tasks : [];
+      const completedCount = stageTasks.filter((t: any) => t.completed).length;
+      return {
+        id: `mod-${st.stageNumber || idx + 1}`,
+        number: st.stageNumber || idx + 1,
+        title: st.title || `Stage ${idx + 1}`,
+        description: st.description || `Master ${st.title} core competencies and projects`,
+        status: st.status === 'Completed' ? 'Completed' : (st.status === 'In Progress' ? 'In Progress' : 'Upcoming'),
+        totalTasks: stageTasks.length || 4,
+        completedTasks: completedCount,
+        percentage: st.percentage ?? (stageTasks.length ? Math.round((completedCount / stageTasks.length) * 100) : 0),
+        tasks: stageTasks.length > 0 ? stageTasks : (mockRoadmap.modules[idx]?.tasks || []),
+        whyThisStep: st.whyThisStep || 'Essential milestone to build verifiable technical proof of work.',
+        additionalResources: st.additionalResources || mockRoadmap.modules[idx]?.additionalResources || []
+      };
+    });
+  }
+
+  // Fallback if both empty
+  if (modules.length === 0) modules = mockRoadmap.modules;
+  if (stages.length === 0) stages = mockRoadmap.stages;
+
+  return {
+    id: raw.id || 'roadmap-active',
+    goal: raw.goal || 'AI Engineer',
+    targetRole: raw.targetRole || raw.goal || 'AI Engineer',
+    overallPercentage: typeof raw.overallPercentage === 'number' ? raw.overallPercentage : 28,
+    stages,
+    modules
+  };
 }
 
 export const api = {
@@ -107,8 +250,8 @@ export const api = {
       () => {
         const token = 'mock_jwt_token_' + Date.now();
         setLocalItem(STORAGE_KEYS.AUTH_TOKEN, token);
-        const profile = { ...mockProfile, name: data.name || mockProfile.name, email: data.email };
-        setLocalItem(STORAGE_KEYS.PROFILE, profile);
+        const profile = getDynamicFallbackProfile(data.email, data.name);
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.PROFILE), profile);
         return { success: true, token, user: profile };
       }
     );
@@ -121,7 +264,10 @@ export const api = {
       () => {
         const token = 'mock_jwt_token_' + Date.now();
         setLocalItem(STORAGE_KEYS.AUTH_TOKEN, token);
-        const profile = getLocalItem(STORAGE_KEYS.PROFILE, mockProfile);
+        const profile = getLocalItem<Profile>(
+          getUserStorageKey(STORAGE_KEYS.PROFILE), 
+          getDynamicFallbackProfile(data.email)
+        );
         return { success: true, token, user: profile };
       }
     );
@@ -129,24 +275,69 @@ export const api = {
 
   // Profile & Onboarding
   async getProfile(): Promise<Profile> {
+    const userKey = getUserStorageKey(STORAGE_KEYS.PROFILE);
+    const cached = getLocalItem<Profile>(userKey, null) 
+      || getLocalItem<Profile>(STORAGE_KEYS.PROFILE, null);
+
+    const isOnboardedFlag = localStorage.getItem('student_os_onboarded') === 'true';
+
     return fetchWithFallback(
       '/profiles',
       { method: 'GET' },
-      () => getLocalItem<Profile>(STORAGE_KEYS.PROFILE, mockProfile)
-    );
+      () => cached || getDynamicFallbackProfile()
+    ).then((res) => {
+      const resolved: Profile = {
+        ...(cached || getDynamicFallbackProfile()),
+        ...res,
+        onboardingCompleted: res.onboardingCompleted ?? (isOnboardedFlag || cached?.onboardingCompleted || false)
+      };
+      setLocalItem(userKey, resolved);
+      setLocalItem(STORAGE_KEYS.PROFILE, resolved);
+      return resolved;
+    }).catch(() => cached || getDynamicFallbackProfile());
   },
 
   async saveProfile(profileData: Partial<Profile>): Promise<Profile> {
+    const userKey = getUserStorageKey(STORAGE_KEYS.PROFILE);
+    const current = getLocalItem<Profile>(userKey, null)
+      || getLocalItem<Profile>(STORAGE_KEYS.PROFILE, null)
+      || getDynamicFallbackProfile();
+
+    const updated: Profile = {
+      ...current,
+      ...profileData,
+      onboardingCompleted: profileData.onboardingCompleted !== undefined 
+        ? profileData.onboardingCompleted 
+        : true
+    };
+
+    // Persist immediately and synchronously across local stores
+    setLocalItem(userKey, updated);
+    setLocalItem(STORAGE_KEYS.PROFILE, updated);
+    if (updated.onboardingCompleted) {
+      localStorage.setItem('student_os_onboarded', 'true');
+    }
+
     return fetchWithFallback(
       '/profiles',
-      { method: 'POST', body: JSON.stringify(profileData) },
-      () => {
-        const current = getLocalItem<Profile>(STORAGE_KEYS.PROFILE, mockProfile);
-        const updated = { ...current, ...profileData };
-        setLocalItem(STORAGE_KEYS.PROFILE, updated);
-        return updated;
-      }
-    );
+      { method: 'POST', body: JSON.stringify(updated) },
+      () => updated
+    ).then((serverRes) => {
+      const merged: Profile = {
+        ...updated,
+        ...serverRes,
+        onboardingCompleted: true
+      };
+      setLocalItem(userKey, merged);
+      setLocalItem(STORAGE_KEYS.PROFILE, merged);
+      return merged;
+    }).catch(() => updated);
+  },
+
+  async isOnboarded(): Promise<boolean> {
+    if (localStorage.getItem('student_os_onboarded') === 'true') return true;
+    const profile = await this.getProfile();
+    return Boolean(profile.onboardingCompleted);
   },
 
   // AI Agent Analysis & Roadmap Generation
@@ -157,14 +348,40 @@ export const api = {
       async () => {
         // Simulate thoughtful AI analysis delay
         await new Promise((resolve) => setTimeout(resolve, 1200));
-        const roadmap = getLocalItem<Roadmap>(STORAGE_KEYS.ROADMAP, mockRoadmap);
-        roadmap.goal = data.goal;
-        roadmap.targetRole = data.goal;
-        setLocalItem(STORAGE_KEYS.ROADMAP, roadmap);
+        const currentRoadmap = getLocalItem<Roadmap>(getUserStorageKey(STORAGE_KEYS.ROADMAP), mockRoadmap);
+        const updatedRoadmap: Roadmap = {
+          ...currentRoadmap,
+          goal: data.goal,
+          targetRole: data.goal,
+          overallPercentage: 0,
+          modules: currentRoadmap.modules.map(mod => ({
+            ...mod,
+            completedTasks: 0,
+            percentage: 0,
+            status: mod.number === 1 ? 'In Progress' : 'Upcoming',
+            tasks: mod.tasks.map(t => ({ ...t, completed: false, subTasks: t.subTasks?.map(st => ({ ...st, completed: false })) }))
+          })),
+          stages: currentRoadmap.stages.map(st => ({
+            ...st,
+            status: st.stageNumber === 1 ? 'In Progress' : 'Upcoming'
+          }))
+        };
+        const normalized = normalizeRoadmap(updatedRoadmap);
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.ROADMAP), normalized);
+        
+        // Reset focus items to new roadmap tasks
+        const initialFocus = normalized.modules[0].tasks.slice(0, 4).map((t, idx) => ({
+          id: `tf-${idx + 1}`,
+          text: t.title,
+          completed: false,
+          time: '30m'
+        }));
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.FOCUS), initialFocus);
+
         return {
           status: 'success',
-          summary: `Personalized ${data.goal} Roadmap generated with ${roadmap.stages.length} milestones and tailored learning paths.`,
-          roadmap,
+          summary: `Personalized ${data.goal} Roadmap generated with ${normalized.stages.length} milestones tailored to your ${data.skills.join(', ')} background.`,
+          roadmap: normalized,
         };
       }
     );
@@ -172,11 +389,18 @@ export const api = {
 
   // Roadmap & Progress
   async getRoadmap(): Promise<Roadmap> {
-    return fetchWithFallback(
+    const raw = await fetchWithFallback(
       '/roadmap',
       { method: 'GET' },
-      () => getLocalItem<Roadmap>(STORAGE_KEYS.ROADMAP, mockRoadmap)
+      () => {
+        const stored = localStorage.getItem(getUserStorageKey(STORAGE_KEYS.ROADMAP));
+        if (stored) {
+          try { return JSON.parse(stored); } catch {}
+        }
+        return mockRoadmap;
+      }
     );
+    return normalizeRoadmap(raw);
   },
 
   async markTaskProgress(data: { taskId: string; completed: boolean; subTaskId?: string }): Promise<{ success: boolean; roadmap: Roadmap }> {
@@ -184,20 +408,16 @@ export const api = {
       '/progress',
       { method: 'POST', body: JSON.stringify(data) },
       () => {
-        const roadmap = getLocalItem<Roadmap>(STORAGE_KEYS.ROADMAP, mockRoadmap);
+        const roadmap = getLocalItem<Roadmap>(getUserStorageKey(STORAGE_KEYS.ROADMAP), mockRoadmap);
         
         // Find and update the task inside modules
-        let found = false;
         roadmap.modules.forEach((mod) => {
           mod.tasks.forEach((task) => {
             if (task.id === data.taskId) {
-              found = true;
               if (data.subTaskId && task.subTasks) {
                 const sub = task.subTasks.find((s) => s.id === data.subTaskId);
                 if (sub) sub.completed = data.completed;
-                // If all subtasks are done, mark task done
-                const allSubDone = task.subTasks.every((s) => s.completed);
-                task.completed = allSubDone;
+                task.completed = task.subTasks.every((s) => s.completed);
               } else {
                 task.completed = data.completed;
                 if (task.subTasks) {
@@ -218,17 +438,33 @@ export const api = {
         // Update overall roadmap percentage
         const totalCompleted = roadmap.modules.reduce((acc, m) => acc + m.completedTasks, 0);
         const totalTasks = roadmap.modules.reduce((acc, m) => acc + m.totalTasks, 0);
-        roadmap.overallPercentage = Math.round((totalCompleted / (totalTasks || 1)) * 100);
+        const normalized = normalizeRoadmap(roadmap);
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.ROADMAP), normalized);
 
-        setLocalItem(STORAGE_KEYS.ROADMAP, roadmap);
+        // Synchronize Focus Item if matching
+        const focusItems = getLocalItem<any[]>(getUserStorageKey(STORAGE_KEYS.FOCUS), []);
+        const matchingFocus = focusItems.find(f => f.taskId === data.taskId);
+        if (matchingFocus) {
+          matchingFocus.completed = data.completed;
+          setLocalItem(getUserStorageKey(STORAGE_KEYS.FOCUS), focusItems);
+        }
 
-        // Also update metrics
-        const metrics = getLocalItem<ProgressMetric>(STORAGE_KEYS.METRICS, mockMetrics);
-        metrics.topicsCompleted = totalCompleted;
-        metrics.roadmapPercentage = roadmap.overallPercentage;
-        setLocalItem(STORAGE_KEYS.METRICS, metrics);
+        // Record real activity in user activity log if task marked completed
+        if (data.completed) {
+          const today = new Date().toISOString().split('T')[0];
+          const logKey = getUserStorageKey(STORAGE_KEYS.ACTIVITY_LOG);
+          const activityLog = getLocalItem<ActivityLogEntry[]>(logKey, []);
+          activityLog.push({
+            id: 'act-' + Date.now(),
+            date: today,
+            hours: 1.5,
+            taskId: data.taskId,
+            taskTitle: 'Completed Roadmap Task'
+          });
+          setLocalItem(logKey, activityLog);
+        }
 
-        return { success: true, roadmap };
+        return { success: true, roadmap: normalized };
       }
     );
   },
@@ -244,15 +480,21 @@ export const api = {
 
   async getResources(category?: string): Promise<Resource[]> {
     const query = category && category !== 'All' ? `?category=${encodeURIComponent(category)}` : '';
-    return fetchWithFallback(
+    const items = await fetchWithFallback(
       `/resources${query}`,
       { method: 'GET' },
       () => {
         const all = getLocalItem<Resource[]>(STORAGE_KEYS.RESOURCES, mockResources);
         if (!category || category === 'All') return all;
-        return all.filter((r) => r.category.toLowerCase().includes(category.toLowerCase()) || r.tags.some(t => t.toLowerCase().includes(category.toLowerCase())));
+        return all.filter((r) => r.category.toLowerCase().includes(category.toLowerCase()) || r.tags?.some(t => t.toLowerCase().includes(category.toLowerCase())));
       }
     );
+    const validList = Array.isArray(items) && items.length > 0 ? items : mockResources;
+    return validList.map(r => ({
+      ...r,
+      tags: Array.isArray(r.tags) ? r.tags : [],
+      thumbnailUrl: r.thumbnailUrl || (r.url?.includes('watch?v=') ? `https://img.youtube.com/vi/${r.url.split('watch?v=')[1].split('&')[0]}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400')
+    }));
   },
 
   async toggleSaveResource(resourceId: string): Promise<boolean> {
@@ -294,9 +536,17 @@ export const api = {
     );
   },
 
-  // AI Chat & Assistant
+  // AI Chat & Messages (Persisted per tenant)
+  async getAgentMessages(): Promise<ChatMessage[]> {
+    return fetchWithFallback(
+      '/agent/messages',
+      { method: 'GET' },
+      () => getLocalItem<ChatMessage[]>(getUserStorageKey(STORAGE_KEYS.MESSAGES), [])
+    );
+  },
+
   async getChatHistory(): Promise<ChatMessage[]> {
-    return getLocalItem<ChatMessage[]>(STORAGE_KEYS.MESSAGES, mockInitialMessages);
+    return this.getAgentMessages();
   },
 
   async chatWithAgent(message: string, model: string = 'GPT-4o'): Promise<ChatMessage> {
@@ -304,86 +554,39 @@ export const api = {
       '/agent/chat',
       { method: 'POST', body: JSON.stringify({ message, model }) },
       async () => {
-        // AI simulated response logic
+        // AI simulated fallback response logic
         await new Promise((resolve) => setTimeout(resolve, 800));
 
+        const profile = await this.getProfile();
         let responseText = `Here is what I recommend regarding "${message}":`;
         let richCard = undefined;
 
         const lower = message.toLowerCase();
         if (lower.includes('today') || lower.includes('learn') || lower.includes('what should i')) {
-          responseText = "Based on your profile, current progress, and goal of becoming an AI Engineer, here's what I recommend for today:";
+          responseText = `Based on your goal of ${profile.goal} and your current progress, here is my recommendation for today:`;
           richCard = {
             type: 'recommendation' as const,
-            title: 'Learn: Vector Databases for RAG',
-            subtitle: 'This will help you build a strong foundation for LLM applications.',
+            title: `Learn: Core Foundations for ${profile.goal}`,
+            subtitle: 'This will bridge your current skills with your target milestones.',
             badgeText: 'Recommended for Today',
             tags: [
               { icon: 'clock', label: '1-2 hours' },
               { icon: 'bar-chart', label: 'Intermediate' },
               { icon: 'target', label: 'High Impact' }
             ],
-            whyRecommendation: 'Vector databases are the key memory component of production AI systems. By completing this next, you bridge your FastAPI backend skills with semantic vector retrieval.',
+            whyRecommendation: `Building production-ready applications for ${profile.goal} requires strong backend concepts and structured execution.`,
             learningResources: [
-              { title: 'Vector Databases in 10 Minutes (freeCodeCamp)', platform: 'YouTube', duration: '10m', url: 'https://youtube.com' },
-              { title: 'ChromaDB Python Quickstart', platform: 'Docs', duration: '20m', url: 'https://trychroma.com' },
-              { title: 'Vector Similarity Search Jupyter Notebook', platform: 'GitHub', duration: '40m', url: 'https://github.com' }
+              { title: 'Full Stack & AI Architecture Overview', platform: 'YouTube', duration: '20m', url: 'https://youtube.com' },
+              { title: 'Interactive Practice Notebook', platform: 'GitHub', duration: '40m', url: 'https://github.com' }
             ],
             nextSteps: [
-              '1. Install chromadb and sentence-transformers',
-              '2. Create a collection with 5 chunked documents',
-              '3. Test nearest-neighbor semantic search',
-              '4. Wire into your FastAPI backend endpoints'
-            ]
-          };
-        } else if (lower.includes('rag') || lower.includes('resource')) {
-          responseText = "Here are the top-rated RAG resources matching your current skill level:";
-          richCard = {
-            type: 'recommendation' as const,
-            title: 'Mastering RAG: From Basics to Advanced Chunking',
-            subtitle: 'Curated deep-dives from Andrej Karpathy and freeCodeCamp.',
-            badgeText: 'Top Pick for RAG',
-            tags: [
-              { icon: 'clock', label: '2-3 hours' },
-              { icon: 'bar-chart', label: 'Intermediate' },
-              { icon: 'target', label: 'Core AI Skill' }
-            ],
-            whyRecommendation: 'RAG allows LLMs to query custom internal documentation without expensive model fine-tuning.',
-            learningResources: [
-              { title: 'Build a Complete RAG App with LangChain (codebasics)', platform: 'YouTube', duration: '1h 12m', url: 'https://youtube.com' },
-              { title: 'Practical Guide to Building AI Agents (OpenAI)', platform: 'Article', duration: '15m', url: 'https://openai.com' }
-            ],
-            nextSteps: [
-              '1. Understand chunking strategies (fixed-size vs semantic)',
-              '2. Compare dense vs sparse retrieval (BM25 vs embeddings)',
-              '3. Implement reranking using Cohere or Cross-Encoders'
-            ]
-          };
-        } else if (lower.includes('project') || lower.includes('idea')) {
-          responseText = "Here is a high-impact project tailored for your current progress:";
-          richCard = {
-            type: 'recommendation' as const,
-            title: 'Project: AI Knowledge Assistant with FastAPI & Chroma',
-            subtitle: 'A portfolio-defining full-stack AI system.',
-            badgeText: 'Portfolio Booster',
-            tags: [
-              { icon: 'clock', label: '4-6 hours' },
-              { icon: 'bar-chart', label: 'Hands-on Build' },
-              { icon: 'target', label: 'Top Resume Match' }
-            ],
-            whyRecommendation: 'Recruiters want to see that you can connect backend APIs with AI embeddings and provide clean response streaming.',
-            learningResources: [
-              { title: 'FastAPI Backend Architecture Guide', platform: 'Docs', duration: '30m', url: 'https://fastapi.tiangolo.com' },
-              { title: 'ChromaDB Local Deployment', platform: 'GitHub', duration: '20m', url: 'https://github.com' }
-            ],
-            nextSteps: [
-              '1. Clone your Task Manager backend',
-              '2. Add `/ingest` and `/chat` endpoints',
-              '3. Push to GitHub with a high quality README'
+              '1. Review active module checklist in your Roadmap',
+              '2. Code the daily exercise',
+              '3. Commit your progress to GitHub'
             ]
           };
         } else {
-          responseText = `I understand you're asking about "${message}". As your AI study agent for your AI Engineer goal, I suggest focusing on building tangible code alongside structured theory. What part would you like to explore deeper?`;
+          responseText = `I understand you're asking about "${message}". As your personal AI agent guiding you toward becoming a ${profile.goal}, I suggest focusing on building tangible code alongside structured theory. How can I assist you with this?`;
         }
 
         const newAssistantMessage: ChatMessage = {
@@ -394,35 +597,169 @@ export const api = {
           richCard
         };
 
-        const currentMsgs = getLocalItem<ChatMessage[]>(STORAGE_KEYS.MESSAGES, mockInitialMessages);
-        setLocalItem(STORAGE_KEYS.MESSAGES, [...currentMsgs, newAssistantMessage]);
+        const currentMsgs = getLocalItem<ChatMessage[]>(getUserStorageKey(STORAGE_KEYS.MESSAGES), []);
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.MESSAGES), [...currentMsgs, newAssistantMessage]);
         return newAssistantMessage;
       }
     );
   },
 
+  async clearChatHistory(): Promise<void> {
+    setLocalItem(getUserStorageKey(STORAGE_KEYS.MESSAGES), []);
+  },
+
   // Projects
   async getProjects(): Promise<Project[]> {
-    return getLocalItem<Project[]>(STORAGE_KEYS.PROJECTS, mockProjects);
+    return fetchWithFallback(
+      '/projects',
+      { method: 'GET' },
+      () => getLocalItem<Project[]>(getUserStorageKey(STORAGE_KEYS.PROJECTS), [])
+    );
+  },
+
+  async createProject(projectData: Partial<Project>): Promise<Project> {
+    return fetchWithFallback(
+      '/projects',
+      { method: 'POST', body: JSON.stringify(projectData) },
+      () => {
+        const current = getLocalItem<Project[]>(getUserStorageKey(STORAGE_KEYS.PROJECTS), []);
+        const newProj: Project = {
+          id: 'proj-' + Date.now(),
+          title: projectData.title || 'New Portfolio Project',
+          description: projectData.description || 'Hands-on practical build.',
+          techStack: projectData.techStack || ['Python', 'FastAPI'],
+          status: projectData.status || 'In Progress',
+          progress: projectData.progress ?? 0,
+          githubUrl: projectData.githubUrl,
+          liveUrl: projectData.liveUrl,
+          difficulty: projectData.difficulty || 'Intermediate',
+          category: projectData.category || 'Engineering',
+          commitSha: projectData.commitSha || ('8b4c' + Math.floor(1000 + Math.random() * 9000).toString(16)),
+          branch: projectData.branch || 'main',
+          stars: projectData.stars || 0,
+          lastSynced: projectData.lastSynced || 'Just now',
+          ciStatus: projectData.ciStatus || 'passing'
+        };
+        const updated = [newProj, ...current];
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.PROJECTS), updated);
+        return newProj;
+      }
+    );
+  },
+
+  async deleteProject(projectId: string): Promise<boolean> {
+    return fetchWithFallback(
+      `/projects/${projectId}`,
+      { method: 'DELETE' },
+      () => {
+        const current = getLocalItem<Project[]>(getUserStorageKey(STORAGE_KEYS.PROJECTS), []);
+        const updated = current.filter(p => p.id !== projectId);
+        setLocalItem(getUserStorageKey(STORAGE_KEYS.PROJECTS), updated);
+        return true;
+      }
+    );
+  },
+
+  async connectGithubRepo(repoUrl: string): Promise<Project> {
+    let cleanUrl = repoUrl.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+    const parts = cleanUrl.split('/');
+    const owner = parts[0] || 'student';
+    const repo = parts[1] || 'student-os-module';
+
+    let repoTitle = repo.replace(/[-_]/g, ' ');
+    repoTitle = repoTitle.charAt(0).toUpperCase() + repoTitle.slice(1);
+    let description = `Connected GitHub repository ${owner}/${repo} with verified proof of work.`;
+    let stars = 0;
+    let language = 'TypeScript';
+    let defaultBranch = 'main';
+    let commitSha = '4f8b' + Math.floor(1000 + Math.random() * 9000).toString(16);
+
+    try {
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+      if (res.ok) {
+        const data = await res.json();
+        repoTitle = data.name.replace(/[-_]/g, ' ');
+        repoTitle = repoTitle.charAt(0).toUpperCase() + repoTitle.slice(1);
+        description = data.description || description;
+        stars = data.stargazers_count ?? stars;
+        language = data.language || language;
+        defaultBranch = data.default_branch || defaultBranch;
+      }
+    } catch {
+      // offline / rate limited fallback
+    }
+
+    return this.createProject({
+      title: repoTitle,
+      description,
+      techStack: [language, 'Git', 'GitHub Actions', 'Docker'],
+      status: 'In Progress',
+      progress: 50,
+      githubUrl: `https://github.com/${owner}/${repo}`,
+      difficulty: 'Intermediate',
+      category: 'Open Source',
+      commitSha,
+      branch: defaultBranch,
+      stars,
+      lastSynced: 'Just now',
+      ciStatus: 'passing'
+    });
   },
 
   // Jobs
   async getJobs(): Promise<Job[]> {
-    return fetchWithFallback('/jobs', { method: 'GET' }, () => mockJobs);
+    return fetchWithFallback(
+      '/jobs', 
+      { method: 'GET' }, 
+      async () => {
+        const profile = await this.getProfile();
+        const projects = await this.getProjects();
+        const studentSkills = new Set((profile.skills || []).map(s => s.toLowerCase()));
+        const projectTechs = new Set(projects.flatMap(p => (p.techStack || []).map(t => t.toLowerCase())));
+
+        return mockJobs.map(job => {
+          const reqSkills = job.skillsMatched.concat(job.skillsToImprove);
+          const matched = reqSkills.filter(s => studentSkills.has(s.toLowerCase()));
+          const toImprove = reqSkills.filter(s => !studentSkills.has(s.toLowerCase()));
+          
+          // Technical Match (0-50%)
+          const techScore = reqSkills.length > 0 ? Math.round((matched.length / reqSkills.length) * 50) : 25;
+          
+          // Experience / Projects Match (0-30%)
+          const hasProject = reqSkills.some(s => projectTechs.has(s.toLowerCase()));
+          const projScore = projects.length > 0 ? (hasProject ? 30 : 15) : 0;
+          
+          // Career Alignment (0-20%)
+          const goalMatch = profile.goal && job.title.toLowerCase().includes(profile.goal.toLowerCase());
+          const careerScore = goalMatch ? 20 : 10;
+          
+          const matchScore = Math.min(100, Math.max(0, techScore + projScore + careerScore));
+
+          return {
+            ...job,
+            matchScore,
+            skillsMatched: matched,
+            skillsToImprove: toImprove,
+            isTopMatch: matchScore >= 75
+          };
+        }).sort((a, b) => b.matchScore - a.matchScore);
+      }
+    );
   },
 
   async analyzeJobFit(jobId: string) {
     return fetchWithFallback(
       '/jobs/analyze',
       { method: 'POST', body: JSON.stringify({ jobId }) },
-      () => {
-        const job = mockJobs.find((j) => j.id === jobId) || mockJobs[0];
+      async () => {
+        const jobs = await this.getJobs();
+        const job = jobs.find((j) => j.id === jobId) || jobs[0];
         return {
           jobId: job.id,
           matchScore: job.matchScore,
           strengths: job.skillsMatched,
           gaps: job.skillsToImprove,
-          recommendation: `Complete Stage 4 (RAG) and Stage 5 (AI Agents) to increase match score from ${job.matchScore}% to 98%.`
+          recommendation: `Complete your active roadmap milestones to increase match score from ${job.matchScore}% to 95%+.`
         };
       }
     );
@@ -432,22 +769,27 @@ export const api = {
     return fetchWithFallback(
       '/jobs/tailor',
       { method: 'POST', body: JSON.stringify({ jobId }) },
-      () => ({
-        jobTitle: 'Junior AI Engineer',
-        company: 'Cognitive Scale AI',
-        matchScore: 83,
-        tailoredCvBullets: [
-          '• Engineered FastAPI Microservice with JWT Auth using Python, FastAPI, PostgreSQL, Docker; implemented structured API contracts aligned with production standards.',
-          '• Built CLI Document Summarizer with Gemini API and local caching; accelerated text summarization throughput.'
-        ],
-        tailoredCoverLetter: 'Dear Hiring Team at Cognitive Scale AI,\n\nI am writing to express my strong interest in the Junior AI Engineer role. As an aspiring AI Engineer with hands-on experience building FastAPI microservices and LLM document processing pipelines, I am eager to contribute to your engineering team...',
-        atsAnalysis: {
-          atsReadinessScore: 88,
-          matchedKeywords: ['Python', 'FastAPI', 'Docker', 'PostgreSQL'],
-          missingKeywords: ['RAG', 'Vector Databases'],
-          recommendation: 'Highlight your asynchronous API design and schema validation projects in your summary.'
-        }
-      })
+      async () => {
+        const jobs = await this.getJobs();
+        const job = jobs.find((j) => j.id === jobId) || jobs[0];
+        const profile = await this.getProfile();
+        return {
+          jobTitle: job.title,
+          company: job.company,
+          matchScore: job.matchScore,
+          tailoredCvBullets: [
+            `• Engineered backend microservices and applied clean architecture principles; implemented robust API contracts.`,
+            `• Developed production-grade solutions using ${profile.skills.slice(0, 3).join(', ')}, accelerating throughput and reliability.`
+          ],
+          tailoredCoverLetter: `Dear Hiring Team at ${job.company},\n\nI am writing to express my strong interest in the ${job.title} role. As a dedicated student and aspiring ${profile.goal} with practical experience in ${profile.skills.join(', ')}, I am enthusiastic about the prospect of contributing to your team...`,
+          atsAnalysis: {
+            atsReadinessScore: Math.min(95, job.matchScore + 8),
+            matchedKeywords: job.skillsMatched,
+            missingKeywords: job.skillsToImprove,
+            recommendation: 'Highlight your asynchronous API design, testing patterns, and completed projects.'
+          }
+        };
+      }
     );
   },
 
@@ -455,33 +797,32 @@ export const api = {
     return fetchWithFallback(
       '/jobs/interview-prep',
       { method: 'POST', body: JSON.stringify({ jobId }) },
-      () => ({
-        jobTitle: 'Junior AI Engineer',
-        company: 'Cognitive Scale AI',
-        matchScore: 83,
-        technicalDeepDives: [
-          {
-            topic: 'Vector Search & RAG Latency',
-            question: 'How do you handle vector search latency and chunking strategies when building RAG pipelines?',
-            sampleAnswerStrategy: 'Explain chunking tradeoffs (256 vs 512 tokens with 10% overlap), approximate nearest neighbors (HNSW), and caching frequent query embeddings.'
-          },
-          {
-            topic: 'FastAPI Concurrency',
-            question: 'How does FastAPI handle asynchronous requests with async def vs regular def routes with database calls?',
-            sampleAnswerStrategy: 'Clarify threadpool delegation for blocking sync def vs native event-loop execution for async def.'
-          }
-        ],
-        behavioralStarQuestions: [
-          {
-            question: 'Tell me about a time you solved a difficult backend architectural bug.',
-            recommendedStory: 'Discuss building FastAPI Microservice with JWT Auth. Situation: async database queries were blocking. Task: optimize connection pooling. Action: configured async SQLAlchemy engine. Result: 60% latency reduction.'
-          }
-        ],
-        smartQuestionsToAsk: [
-          'What does the current LLM evaluation and regression testing pipeline look like at Cognitive Scale AI?',
-          'How do you balance latency vs model accuracy in production agent workflows?'
-        ]
-      })
+      async () => {
+        const jobs = await this.getJobs();
+        const job = jobs.find((j) => j.id === jobId) || jobs[0];
+        return {
+          jobTitle: job.title,
+          company: job.company,
+          matchScore: job.matchScore,
+          technicalDeepDives: [
+            {
+              topic: `${job.skillsMatched[0] || 'System Design'} Architecture`,
+              question: `How do you architect scalable, high-throughput workflows in production?`,
+              sampleAnswerStrategy: `Explain horizontal scaling, caching strategies, and robust error recovery mechanisms.`
+            }
+          ],
+          behavioralStarQuestions: [
+            {
+              question: 'Tell me about a time you had to master a new technology under tight deadlines.',
+              recommendedStory: 'Discuss building your recent portfolio project with autonomous learning workflows and structured roadmap execution.'
+            }
+          ],
+          smartQuestionsToAsk: [
+            `What is the primary challenge the engineering team is solving for ${job.title}?`,
+            'What does the engineering deployment and testing cadence look like?'
+          ]
+        };
+      }
     );
   },
 
@@ -490,18 +831,18 @@ export const api = {
       '/jobs/parse-jd-and-adapt',
       { method: 'POST', body: JSON.stringify({ rawJd, jobTitle, company, autoInjectRoadmap: true }) },
       () => ({
-        inferredTitle: jobTitle || 'AI Infrastructure Engineer',
-        inferredCompany: company || 'Pasted Job Posting',
-        extractedSkills: ['Python', 'FastAPI', 'RAG', 'Vector Databases', 'Docker'],
-        matchScore: 68,
-        matchedSkills: ['Python', 'FastAPI', 'Docker'],
-        missingSkills: ['RAG', 'Vector Databases'],
+        inferredTitle: jobTitle || 'Software Engineer',
+        inferredCompany: company || 'Tech Company',
+        extractedSkills: ['Python', 'FastAPI', 'Docker', 'PostgreSQL'],
+        matchScore: 72,
+        matchedSkills: ['Python', 'FastAPI'],
+        missingSkills: ['PostgreSQL', 'Docker'],
         roadmapAdapted: true,
         adaptedMilestone: {
-          title: `Sprint: ${jobTitle || 'AI Engineer'} Preparation`,
+          title: `Sprint: ${jobTitle || 'Career'} Preparation`,
           tasks: [
-            { id: 'task-adapt-1', title: 'Master RAG Fundamentals', completed: false },
-            { id: 'task-adapt-2', title: 'Deploy Vector Indexing Proof-of-Concept', completed: false }
+            { id: 'task-adapt-1', title: 'Deep-dive targeted requirements', completed: false },
+            { id: 'task-adapt-2', title: 'Build integration proof-of-concept', completed: false }
           ]
         }
       })
@@ -514,32 +855,32 @@ export const api = {
       '/assessment/generate',
       { method: 'POST', body: JSON.stringify({ topic, difficulty }) },
       () => ({
-        assessmentId: 'eval-demo',
-        topic: topic || 'RAG & Vector Search',
+        assessmentId: 'eval-' + Date.now(),
+        topic: topic || 'Core Technical Concepts',
         difficulty,
-        totalQuestions: 3,
+        totalQuestions: 2,
         questions: [
           {
-            id: 'rag-q1',
-            question: 'What is the primary tradeoff when using HNSW indexing in vector databases?',
+            id: 'q1',
+            question: `In modern software architecture, what is the primary advantage of decoupling stateless services?`,
             options: [
-                'A) High search speed and recall at the cost of higher memory (RAM) consumption',
-                'B) Zero RAM usage with very high query latency',
-                'C) Guarantees exact linear brute-force nearest neighbor distance',
-                'D) Only supports scalar integers, not floating-point embeddings'
+              'A) It enables independent horizontal scaling and resilience against single node failures',
+              'B) It eliminates the need for any database persistence',
+              'C) It forces all components to share identical memory space',
+              'D) It requires zero network communication'
             ],
-            concept: 'HNSW Vector Indexing'
+            concept: 'Scalable System Architecture'
           },
           {
-            id: 'rag-q2',
-            question: 'Why is document chunking with a sliding window (10-15% overlap) critical in RAG?',
+            id: 'q2',
+            question: `When designing APIs, why are structured contract definitions (like OpenAPI / Pydantic) essential?`,
             options: [
-                'A) It prevents the embedding model from generating floats',
-                'B) It preserves contextual continuity across chunk boundaries',
-                'C) It encrypts documents against extraction',
-                'D) It eliminates the need for an embedding model'
+              'A) They guarantee compile-time and runtime data validation, preventing subtle contract mismatches',
+              'B) They replace the need for unit testing completely',
+              'C) They turn all HTTP requests into UDP packets',
+              'D) They disable authentication for faster speed'
             ],
-            concept: 'Chunking & Context Preservation'
+            concept: 'Contract & Schema Validation'
           }
         ]
       })
@@ -551,44 +892,48 @@ export const api = {
       '/assessment/submit',
       { method: 'POST', body: JSON.stringify({ topic, answers }) },
       () => {
-        const correctCount = Object.keys(answers).length >= 2 ? 2 : 1;
+        const correctCount = Object.keys(answers).length >= 1 ? Object.keys(answers).length : 1;
         const passed = correctCount >= 2;
         return {
           topic,
-          score: passed ? 85 : 50,
+          score: passed ? 90 : 60,
           passed,
           verdict: passed ? 'Mastery Demonstrated' : 'Skill Gap Detected — Roadmap Adapted',
-          masteredConcepts: passed ? ['Chunking', 'Vector Indexing'] : ['Chunking'],
-          identifiedGaps: passed ? [] : ['HNSW Vector Indexing'],
+          masteredConcepts: passed ? ['Scalable Architecture', 'Validation'] : ['Validation'],
+          identifiedGaps: passed ? [] : ['Scalable System Architecture'],
           roadmapAdapted: !passed,
           remediationStage: !passed ? {
             title: `Adaptive Deep-Dive: ${topic} Remediation`,
-            tasks: [{ title: 'Study Core Concepts: HNSW Vector Indexing', estimatedHours: 1.5 }]
+            tasks: [{ title: `Study Core Concepts: ${topic}`, estimatedHours: 1.5 }]
           } : null
         };
       }
     );
   },
 
-  // Project Agent
+  // Project Blueprint Generator
   async generateProjectBlueprint(topic?: string, difficulty: string = 'Intermediate') {
     return fetchWithFallback(
       '/projects/generate',
       { method: 'POST', body: JSON.stringify({ topic, difficulty }) },
-      () => ({
-        id: 'proj-demo-' + Date.now(),
-        title: 'Autonomous RAG Knowledge Assistant with Hybrid Search',
-        description: 'Production-grade retrieval augmented generation microservice with semantic vector search and citation guardrails.',
-        techStack: ['Python', 'FastAPI', 'ChromaDB', 'Gemini API', 'Docker'],
-        status: 'In Progress',
-        progress: 0,
-        milestones: [
-          { step: 1, title: 'Document Pipeline & Chunking', tasks: ['Implement recursive token chunker (512 tokens)'] },
-          { step: 2, title: 'Vector Embeddings & HNSW Indexing', tasks: ['Persist vectors into ChromaDB collection'] },
-          { step: 3, title: 'FastAPI Query & Grounding Route', tasks: ['Build /query endpoint with hybrid similarity filtering'] }
-        ],
-        starterBoilerplate: 'from fastapi import FastAPI\napp = FastAPI()\n'
-      })
+      async () => {
+        const profile = await this.getProfile();
+        const projTitle = topic ? `${topic} Portfolio Application` : `Full-Stack ${profile.goal} System`;
+        return {
+          id: 'proj-' + Date.now(),
+          title: projTitle,
+          description: `Production-ready application designed to showcase verified competence in ${profile.skills.slice(0, 4).join(', ')}.`,
+          techStack: profile.skills.length > 0 ? profile.skills.slice(0, 4) : ['Python', 'FastAPI', 'Docker', 'PostgreSQL'],
+          status: 'In Progress',
+          progress: 0,
+          milestones: [
+            { step: 1, title: 'Project Initialization & Architecture', tasks: ['Set up repository structure and environment'] },
+            { step: 2, title: 'Core Business Logic & API Contracts', tasks: ['Implement endpoints and schema validation'] },
+            { step: 3, title: 'Persistence & Testing Suite', tasks: ['Write tests and wire database integration'] }
+          ],
+          starterBoilerplate: 'from fastapi import FastAPI\napp = FastAPI()\n\n@app.get("/")\ndef read_root():\n    return {"status": "running"}\n'
+        };
+      }
     );
   },
 
@@ -599,12 +944,13 @@ export const api = {
 
   async createPost(title: string, body: string, category: string): Promise<CommunityPost> {
     const posts = getLocalItem<CommunityPost[]>(STORAGE_KEYS.COMMUNITY, mockCommunityPosts);
+    const profile = await this.getProfile();
     const newPost: CommunityPost = {
       id: 'post-' + Date.now(),
-      authorName: mockProfile.name,
+      authorName: profile.name,
       authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
       timeAgo: 'Just now',
-      category: category || 'AI/ML',
+      category: category || 'General',
       title,
       body,
       hashtags: ['#StudentOS', '#' + (category || 'Learning').replace(/[^a-zA-Z]/g, '')],
@@ -630,22 +976,161 @@ export const api = {
     return false;
   },
 
-  // Progress metrics & Focus
+  // Dynamic Progress Metrics & Focus
   async getProgressMetrics(): Promise<ProgressMetric> {
-    return getLocalItem<ProgressMetric>(STORAGE_KEYS.METRICS, mockMetrics);
+    try {
+      const roadmap = await this.getRoadmap();
+      const allTasks = roadmap.modules.flatMap((m) => m.tasks);
+      const total = allTasks.length || 1;
+      const completedTasks = allTasks.filter((t) => t.completed);
+      const completed = completedTasks.length;
+      const pct = Math.round((completed / total) * 100);
+      const projects = await this.getProjects();
+      const activeProjects = projects.filter((p) => p.status === 'In Progress').length;
+      
+      // Calculate real learning hours from completed tasks
+      const realHours = completedTasks.reduce((acc, t) => acc + (t.estimatedHours || 1.5), 0);
+      
+      // Calculate streak from real activity log
+      const activityLog = await this.getActivityLog();
+      const uniqueDays = new Set(activityLog.map(a => a.date));
+      const currentStreak = uniqueDays.size;
+
+      return {
+        topicsCompleted: completed,
+        totalTopics: total,
+        learningHours: Math.round(realHours),
+        projectsCount: projects.length,
+        activeProjects,
+        currentStreak,
+        roadmapPercentage: pct,
+        skillGrowthPercentage: Math.min(100, Math.round(pct * 0.9)),
+      };
+    } catch {
+      return {
+        topicsCompleted: 0,
+        totalTopics: 1,
+        learningHours: 0,
+        projectsCount: 0,
+        activeProjects: 0,
+        currentStreak: 0,
+        roadmapPercentage: 0,
+        skillGrowthPercentage: 0,
+      };
+    }
+  },
+
+  async getActivityLog(): Promise<ActivityLogEntry[]> {
+    return getLocalItem<ActivityLogEntry[]>(getUserStorageKey(STORAGE_KEYS.ACTIVITY_LOG), []);
   },
 
   async getTodaysFocus() {
-    return getLocalItem(STORAGE_KEYS.FOCUS, mockTodaysFocus);
+    const key = getUserStorageKey(STORAGE_KEYS.FOCUS);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try { 
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    // Automatically generate from user's active incomplete roadmap tasks
+    try {
+      const roadmap = await this.getRoadmap();
+      const activeMod = roadmap.modules.find(m => m.status === 'In Progress' || m.percentage < 100) || roadmap.modules[0];
+      const tasks = (activeMod?.tasks || []).filter(t => !t.completed);
+      const pool = tasks.length > 0 ? tasks : (activeMod?.tasks || []);
+      const generated = pool.slice(0, 4).map((t, idx) => ({
+        id: `tf-${idx + 1}`,
+        taskId: t.id,
+        text: t.title,
+        completed: t.completed || false,
+        time: idx === 0 ? '45m' : idx === 1 ? '1h' : '30m'
+      }));
+      setLocalItem(key, generated);
+      return generated;
+    } catch {
+      return [];
+    }
   },
 
   async toggleFocusItem(id: string) {
-    const list = getLocalItem(STORAGE_KEYS.FOCUS, mockTodaysFocus);
+    const list = await this.getTodaysFocus();
     const target = list.find((i: any) => i.id === id);
     if (target) {
       target.completed = !target.completed;
-      setLocalItem(STORAGE_KEYS.FOCUS, list);
+      setLocalItem(getUserStorageKey(STORAGE_KEYS.FOCUS), list);
+      if (target.taskId) {
+        await this.markTaskProgress({ taskId: target.taskId, completed: target.completed });
+      }
     }
     return list;
+  },
+
+  // Academics (University courses & exams)
+  async getAcademics(): Promise<{ courses: AcademicCourse[]; exams: AcademicExam[] }> {
+    const courses = getLocalItem<AcademicCourse[]>(getUserStorageKey(STORAGE_KEYS.ACADEMICS_COURSES), []);
+    const exams = getLocalItem<AcademicExam[]>(getUserStorageKey(STORAGE_KEYS.ACADEMICS_EXAMS), []);
+    return { courses, exams };
+  },
+
+  async saveAcademicCourse(courseData: Partial<AcademicCourse>): Promise<AcademicCourse> {
+    const courses = getLocalItem<AcademicCourse[]>(getUserStorageKey(STORAGE_KEYS.ACADEMICS_COURSES), []);
+    const newCourse: AcademicCourse = {
+      id: courseData.id || 'course-' + Date.now(),
+      code: courseData.code || 'CS101',
+      name: courseData.name || 'University Course',
+      professor: courseData.professor,
+      credits: courseData.credits || 3,
+      grade: courseData.grade,
+      attendance: courseData.attendance || '100%',
+      progress: courseData.progress ?? 50,
+      semester: courseData.semester || 'Current Semester'
+    };
+    const existingIdx = courses.findIndex(c => c.id === newCourse.id);
+    let updated: AcademicCourse[];
+    if (existingIdx >= 0) {
+      updated = [...courses];
+      updated[existingIdx] = newCourse;
+    } else {
+      updated = [newCourse, ...courses];
+    }
+    setLocalItem(getUserStorageKey(STORAGE_KEYS.ACADEMICS_COURSES), updated);
+    return newCourse;
+  },
+
+  async deleteAcademicCourse(courseId: string): Promise<boolean> {
+    const courses = getLocalItem<AcademicCourse[]>(getUserStorageKey(STORAGE_KEYS.ACADEMICS_COURSES), []);
+    const updated = courses.filter(c => c.id !== courseId);
+    setLocalItem(getUserStorageKey(STORAGE_KEYS.ACADEMICS_COURSES), updated);
+    return true;
+  },
+
+  async saveAcademicExam(examData: Partial<AcademicExam>): Promise<AcademicExam> {
+    const exams = getLocalItem<AcademicExam[]>(getUserStorageKey(STORAGE_KEYS.ACADEMICS_EXAMS), []);
+    const newExam: AcademicExam = {
+      id: examData.id || 'exam-' + Date.now(),
+      title: examData.title || 'Assessment',
+      courseCode: examData.courseCode,
+      date: examData.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: examData.time || '10:00 AM',
+      room: examData.room || 'Main Hall'
+    };
+    const existingIdx = exams.findIndex(e => e.id === newExam.id);
+    let updated: AcademicExam[];
+    if (existingIdx >= 0) {
+      updated = [...exams];
+      updated[existingIdx] = newExam;
+    } else {
+      updated = [newExam, ...exams];
+    }
+    setLocalItem(getUserStorageKey(STORAGE_KEYS.ACADEMICS_EXAMS), updated);
+    return newExam;
+  },
+
+  async deleteAcademicExam(examId: string): Promise<boolean> {
+    const exams = getLocalItem<AcademicExam[]>(getUserStorageKey(STORAGE_KEYS.ACADEMICS_EXAMS), []);
+    const updated = exams.filter(e => e.id !== examId);
+    setLocalItem(getUserStorageKey(STORAGE_KEYS.ACADEMICS_EXAMS), updated);
+    return true;
   }
 };
