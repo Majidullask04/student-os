@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
-  Atom, 
   CheckCircle2, 
   ArrowRight, 
   Sparkles, 
@@ -9,6 +8,7 @@ import {
   Mail 
 } from 'lucide-react';
 import { GithubIcon, GoogleIcon } from '../components/ui/BrandIcons';
+import { StudentOsLogo } from '../components/ui/StudentOsLogo';
 import { api } from '../services/api';
 
 export const Login: React.FC = () => {
@@ -60,14 +60,8 @@ export const Login: React.FC = () => {
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Brand */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-700 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white">
-            <Atom className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Student OS</h1>
-            <p className="text-xs text-slate-400 font-medium">Learn · Build · Grow</p>
-          </div>
+        <div className="relative z-10">
+          <StudentOsLogo size={42} showText={true} theme="dark" />
         </div>
 
         {/* Center Value Pitch */}

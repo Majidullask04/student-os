@@ -23,6 +23,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { YoutubeIcon } from '../components/ui/BrandIcons';
+import { ToolCallCard } from '../components/ui/ToolCallCard';
+import { Skeleton } from '../components/ui/Skeleton';
 import { api } from '../services/api';
 import { ChatMessage, Profile } from '../types';
 import { mockProfile, mockInitialMessages, mockChatHistory } from '../mocks/data';
@@ -96,32 +98,27 @@ export const Assistant: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/25 shrink-0">
-            <Bot className="w-6 h-6" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/70">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs shrink-0">
+            <Bot className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Your AI Learning Assistant
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              AI Learning Agent
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Get personalized guidance, resources, and solutions for your learning journey.
+            <p className="text-xs text-slate-500 font-medium">
+              Autonomous reasoning, roadmap synthesis, and interview preparation.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden md:block text-right">
-            <span className="font-handwriting text-lg text-indigo-600 font-bold">
-              &ldquo;Same student. Bigger dreams.&rdquo;
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>New Chat</span>
           </button>
         </div>
@@ -200,7 +197,7 @@ export const Assistant: React.FC = () => {
                     </div>
                   ) : (
                     <img
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+                      src="/student-avatar.jpg"
                       alt="User"
                       className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5 ring-2 ring-indigo-500/20"
                     />
@@ -208,10 +205,19 @@ export const Assistant: React.FC = () => {
 
                   {/* Message bubble */}
                   <div className={`max-w-[88%] space-y-2.5 ${isAssistant ? 'text-left' : 'text-right'}`}>
+                    {/* Render Structured Tool Execution Cards (assistant-ui style) */}
+                    {isAssistant && msg.toolCalls && msg.toolCalls.length > 0 && (
+                      <div className="space-y-1.5 mb-2">
+                        {msg.toolCalls.map((tool, tIdx) => (
+                          <ToolCallCard key={tIdx} tool={tool} />
+                        ))}
+                      </div>
+                    )}
+
                     <div
                       className={`p-3.5 rounded-2xl text-xs leading-relaxed inline-block ${
                         isAssistant
-                          ? 'bg-slate-50 text-slate-800 border border-slate-100 whitespace-pre-line'
+                          ? 'bg-slate-50 text-slate-800 border border-slate-200/80 whitespace-pre-line'
                           : 'bg-indigo-600 text-white shadow-xs font-medium'
                       }`}
                     >
@@ -333,9 +339,15 @@ export const Assistant: React.FC = () => {
             })}
 
             {isTyping && (
-              <div className="flex items-center gap-2 text-xs text-slate-400 p-2">
-                <Bot className="w-4 h-4 text-indigo-500 animate-spin" />
-                <span>AI Agent is formulating recommendations...</span>
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5 max-w-md animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 text-xs font-mono text-indigo-700 font-semibold">
+                  <div className="w-2 h-2 rounded-full bg-indigo-600 animate-ping" />
+                  <span>Agent executing tools & evaluating student context...</span>
+                </div>
+                <div className="space-y-1.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />

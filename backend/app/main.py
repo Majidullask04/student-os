@@ -1,16 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, profiles, agent, roadmap, resources, creators, jobs
+from app.core.config import settings
+from app.api import auth, profiles, agent, roadmap, resources, creators, jobs, assessment, projects
 
 app = FastAPI(
-    title="Student OS API",
+    title=settings.PROJECT_NAME,
     description="A personal AI agent that guides students from learning to career readiness.",
     version="1.0.0"
 )
 
+# Production-grade CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,12 +25,25 @@ app.include_router(roadmap.router)
 app.include_router(resources.router)
 app.include_router(creators.router)
 app.include_router(jobs.router)
+app.include_router(assessment.router)
+app.include_router(projects.router)
 
 @app.get("/")
 async def root():
     return {
         "service": "Student OS API",
         "status": "online",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "docs": "/docs"
+    }
+
+@app.get("/health")
+async def health_check():
+    from app.services.supabase_service import supabase_service
+    from datetime import datetime
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "database": "connected" if supabase_service.is_connected() else "in-memory-active",
+        "version": "2.0.0"
     }

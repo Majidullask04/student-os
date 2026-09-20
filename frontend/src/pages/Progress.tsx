@@ -115,11 +115,12 @@ export const Progress: React.FC = () => {
 
         <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
           <span className="text-[11px] font-semibold text-slate-400 block">Current Streak</span>
-          <h3 className="text-lg font-bold text-orange-600 mt-2 flex items-center gap-1">
-            {metrics.currentStreak} days 🔥
+          <h3 className="text-lg font-bold text-slate-900 mt-2 flex items-center gap-1.5">
+            <Flame className="w-4 h-4 text-orange-500 fill-orange-500/20 shrink-0" />
+            {metrics.currentStreak} days
           </h3>
-          <span className="text-[11px] font-semibold text-orange-500 mt-1 block">
-            Personal best!
+          <span className="text-[11px] font-semibold text-orange-600 mt-1 block">
+            Personal best
           </span>
         </div>
 

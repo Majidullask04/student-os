@@ -132,7 +132,7 @@ export const Community: React.FC = () => {
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-3">
             <div className="flex items-center gap-3">
               <img
-                src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80"
+                src="/student-avatar.jpg"
                 alt="User"
                 className="w-9 h-9 rounded-full object-cover ring-2 ring-indigo-500/20"
               />
@@ -312,7 +312,7 @@ export const Community: React.FC = () => {
                         : 'bg-indigo-600 text-white hover:bg-indigo-700'
                     }`}
                   >
-                    {joinedGroups[g.id] ? 'Joined ✓' : 'Join'}
+                    {joinedGroups[g.id] ? 'Joined' : 'Join'}
                   </button>
                 </div>
               ))}

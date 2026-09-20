@@ -14,13 +14,15 @@ import {
   GraduationCap,
   SlidersHorizontal,
   LayoutGrid,
-  ListFilter
+  ListFilter,
+  Star
 } from 'lucide-react';
 import { YoutubeIcon } from '../components/ui/BrandIcons';
 import { api } from '../services/api';
 import { Creator } from '../types';
 import { mockCreators } from '../mocks/data';
 import confetti from 'canvas-confetti';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
 
 export const Creators: React.FC = () => {
   const [creators, setCreators] = useState<Creator[]>(mockCreators);
@@ -186,7 +188,8 @@ export const Creators: React.FC = () => {
         <div className="flex items-center justify-between px-1">
           <div>
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <span className="text-amber-500">★</span> Featured Creators
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
+              Featured Creators
             </h2>
             <p className="text-[11px] text-slate-500">Popular and highly recommended by students</p>
           </div>
@@ -197,9 +200,10 @@ export const Creators: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {filteredCreators.map((creator) => (
-            <div
+            <SpotlightCard
               key={creator.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:border-indigo-300 transition duration-150 flex flex-col justify-between space-y-4"
+              className="p-5 flex flex-col justify-between space-y-4 bg-white border-slate-200/90"
+              spotlightColor="rgba(99, 102, 241, 0.08)"
             >
               {/* Creator Header */}
               <div>
@@ -256,13 +260,13 @@ export const Creators: React.FC = () => {
                 {/* Featured Series */}
                 <div className="mt-3 pt-3 border-t border-slate-100">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                    <Play className="w-3 h-3 text-purple-600 fill-purple-600" />
+                    <Play className="w-3 h-3 text-indigo-600 fill-indigo-600" />
                     Featured Series
                   </span>
                   <ul className="text-xs space-y-1 text-slate-700">
                     {creator.featuredSeries.map((s, idx) => (
                       <li key={idx} className="flex items-center gap-1.5 truncate">
-                        <span className="text-indigo-600 text-[10px]">✔</span>
+                        <Check className="w-3 h-3 text-indigo-600 shrink-0" />
                         <span className="truncate">{s}</span>
                       </li>
                     ))}
@@ -280,7 +284,7 @@ export const Creators: React.FC = () => {
                   {creator.whyRelevant}
                 </p>
               </div>
-            </div>
+            </SpotlightCard>
           ))}
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
 
 import { api } from '../../services/api';
 import { mockProfile } from '../../mocks/data';
+import { StudentOsLogo } from '../ui/StudentOsLogo';
 
 interface TopBarProps {
   onOpenSearch: () => void;

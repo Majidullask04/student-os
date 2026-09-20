@@ -17,6 +17,8 @@ import {
   Atom
 } from 'lucide-react';
 
+import { StudentOsLogo } from '../ui/StudentOsLogo';
+
 interface SidebarProps {
   isOpen: boolean;
   onClose?: () => void;
@@ -55,14 +57,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         }`}
       >
         {/* Brand Header */}
-        <div className="px-5 pt-5 pb-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-700 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white shrink-0">
-            <Atom className="w-5 h-5 text-white animate-spin-slow" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-white tracking-tight leading-tight">Student OS</h1>
-            <p className="text-[11px] font-medium text-slate-400 tracking-wide">Learn · Build · Grow</p>
-          </div>
+        <div className="px-5 pt-5 pb-4">
+          <StudentOsLogo size={36} showText={true} theme="dark" />
         </div>
 
         {/* Navigation List */}

@@ -20,11 +20,18 @@ import {
   Code2,
   Briefcase,
   Layers,
-  Compass
+  Compass,
+  Sun
 } from 'lucide-react';
+import { Skeleton } from '../components/ui/Skeleton';
 import { api } from '../services/api';
 import { mockProfile, mockCreators, mockResources, mockRoadmap } from '../mocks/data';
 import confetti from 'canvas-confetti';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
+import { ShinyText } from '../components/ui/ShinyText';
+import { CountUp } from '../components/ui/CountUp';
+import { GridPattern } from '../components/ui/GridPattern';
+import { Magnet } from '../components/ui/Magnet';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -96,137 +103,159 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* 1. Hero Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-50/90 via-purple-50/50 to-blue-50/60 border border-indigo-100/80 p-6 md:p-8 shadow-xs">
+      <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/90 p-6 md:p-7 shadow-xs">
+        <GridPattern className="opacity-20" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="max-w-xl">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              Good morning, {profile.name}! <span className="inline-block animate-bounce">☀️</span>
+          <div className="max-w-xl space-y-2">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-slate-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+              <span>Adaptive Agent Active</span>
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-500 font-normal">Syncing with roadmap</span>
+            </div>
+
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <span>Good morning, {profile.name}</span>
+              <Sun className="w-5 h-5 text-amber-500" />
             </h1>
-            <p className="text-sm sm:text-base text-slate-600 mt-1 font-medium">
-              Your personal AI agent is here to guide you.
+            <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+              Your personal AI agent has evaluated your active skills and prepared your next roadmap action.
             </p>
 
-            <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 border border-indigo-100/90 shadow-2xs text-xs font-medium text-slate-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              <span>&ldquo;Discipline today, freedom tomorrow.&rdquo;</span>
+            <div className="pt-2 flex items-center gap-2 text-xs text-slate-500 font-mono">
+              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[10px]">
+                GOAL: {profile.goal.toUpperCase()}
+              </span>
+              <span>•</span>
+              <span>Stage 2 in progress</span>
             </div>
           </div>
 
-          {/* Character graphic & handwritten motivation */}
-          <div className="flex items-center gap-4 self-end md:self-center shrink-0">
-            <div className="text-right hidden sm:block">
-              <p className="font-handwriting text-xl text-indigo-700 font-bold -rotate-2">
-                Same student.
-              </p>
-              <p className="font-handwriting text-2xl text-purple-700 font-extrabold -rotate-1">
-                Bigger dreams.
-              </p>
-            </div>
-            <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-2xl overflow-hidden shadow-lg ring-4 ring-white/90 bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-              <img 
-                src="/student-hero.png" 
-                alt="Student 3D avatar" 
-                className="w-full h-full object-cover object-top"
-              />
+          {/* Student Profile Card */}
+          <div className="flex items-center gap-3.5 self-start md:self-center shrink-0">
+            <div className="relative group">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shadow-xs ring-2 ring-slate-200 bg-slate-100 flex items-center justify-center">
+                <img 
+                  src="/student-avatar.jpg" 
+                  alt="Majidulla student profile" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="absolute -bottom-1.5 -right-1.5 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[9px] font-bold tracking-wider shadow-xs border border-white flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>ONLINE</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* 2. Stats Row (5 metric cards) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
         {/* Stat 1: Goal */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:border-indigo-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">My Goal</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Target className="w-4 h-4" />
+        <SpotlightCard className="p-4" spotlightColor="rgba(99, 102, 241, 0.08)">
+          <div className="flex flex-col justify-between h-full space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Target Role</span>
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Target className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight truncate">
+                {profile.goal}
+              </h3>
+              <Link to="/onboarding" className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 mt-1 inline-flex items-center gap-0.5">
+                Edit <ChevronRight className="w-3 h-3" />
+              </Link>
             </div>
           </div>
-          <div className="mt-3">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-none truncate">
-              {profile.goal}
-            </h3>
-            <Link to="/onboarding" className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 mt-1.5 inline-flex items-center gap-0.5">
-              Change Goal <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </div>
+        </SpotlightCard>
 
         {/* Stat 2: Streak */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:border-orange-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Learning Streak</span>
-            <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center">
-              <Flame className="w-4 h-4" />
+        <SpotlightCard className="p-4" spotlightColor="rgba(99, 102, 241, 0.08)">
+          <div className="flex flex-col justify-between h-full space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Streak</span>
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Flame className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                <CountUp end={12} duration={1000} /> days
+              </h3>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">
+                Continuous activity
+              </p>
             </div>
           </div>
-          <div className="mt-3">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-              12 days
-            </h3>
-            <p className="text-[11px] font-medium text-orange-600 mt-1.5 flex items-center gap-1">
-              Keep it going! 🔥
-            </p>
-          </div>
-        </div>
+        </SpotlightCard>
 
         {/* Stat 3: Completed Topics */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:border-emerald-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Completed Topics</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <BookOpen className="w-4 h-4" />
+        <SpotlightCard className="p-4" spotlightColor="rgba(99, 102, 241, 0.08)">
+          <div className="flex flex-col justify-between h-full space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Curriculum</span>
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <BookOpen className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-base font-bold text-slate-900 leading-tight">
+                  <CountUp end={28} duration={1000} /> <span className="text-xs text-slate-400 font-normal">/ 120</span>
+                </h3>
+                <span className="text-[11px] font-semibold text-slate-600">
+                  <CountUp end={23} suffix="%" duration={1000} />
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1 mt-2 overflow-hidden">
+                <div className="bg-indigo-600 h-1 rounded-full transition-all duration-500" style={{ width: '23%' }} />
+              </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-                28 <span className="text-xs text-slate-400 font-normal">/ 120</span>
-              </h3>
-              <span className="text-xs font-semibold text-emerald-600">23%</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: '23%' }} />
-            </div>
-          </div>
-        </div>
+        </SpotlightCard>
 
         {/* Stat 4: Projects */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:border-blue-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Projects</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <FolderGit2 className="w-4 h-4" />
+        <SpotlightCard className="p-4" spotlightColor="rgba(99, 102, 241, 0.08)">
+          <div className="flex flex-col justify-between h-full space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Projects</span>
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <FolderGit2 className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                <CountUp end={5} duration={800} />
+              </h3>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">
+                3 in progress
+              </p>
             </div>
           </div>
-          <div className="mt-3">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-              5
-            </h3>
-            <p className="text-[11px] font-medium text-slate-500 mt-1.5">
-              3 in progress
-            </p>
-          </div>
-        </div>
+        </SpotlightCard>
 
         {/* Stat 5: Communities */}
-        <div className="col-span-2 sm:col-span-1 bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:border-indigo-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Communities</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Users2 className="w-4 h-4" />
+        <SpotlightCard className="col-span-2 sm:col-span-1 p-4" spotlightColor="rgba(99, 102, 241, 0.08)">
+          <div className="flex flex-col justify-between h-full space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Network</span>
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Users2 className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                <CountUp end={12} duration={800} />
+              </h3>
+              <p className="text-[11px] font-medium text-slate-500 mt-1">
+                Active study groups
+              </p>
             </div>
           </div>
-          <div className="mt-3">
-            <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-none">
-              12
-            </h3>
-            <p className="text-[11px] font-medium text-indigo-600 mt-1.5 flex items-center gap-1">
-              Active
-            </p>
-          </div>
-        </div>
+        </SpotlightCard>
       </div>
 
       {/* 3. Main Dashboard Layout (2 Columns: Left 65%, Right 35%) */}
@@ -479,7 +508,7 @@ export const Dashboard: React.FC = () => {
         {/* Right Column (4 cols) */}
         <div className="lg:col-span-4 space-y-6">
           {/* Today's Focus Card */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs">
+          <SpotlightCard className="p-5" spotlightColor="rgba(147, 51, 234, 0.12)">
             <div className="flex items-center justify-between mb-3.5">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-purple-600" />
@@ -508,10 +537,10 @@ export const Dashboard: React.FC = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </SpotlightCard>
 
           {/* Ask Your AI Agent Widget */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+          <SpotlightCard className="p-5 flex flex-col justify-between" spotlightColor="rgba(99, 102, 241, 0.14)">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -527,15 +556,15 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Bot Message Preview */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 leading-relaxed">
-                <p className="font-semibold text-slate-800 mb-1 flex items-center gap-1">
-                  <span>Hi {profile.name}! 👋</span>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-600 leading-relaxed">
+                <p className="font-semibold text-slate-800 mb-1">
+                  Hi {profile.name}
                 </p>
                 <p>
-                  I&apos;m your personal AI study agent. I can help you with learning, career guidance, resources, project ideas, and more.
+                  I evaluate your roadmap progress, recommend high-signal engineering resources, and help you architect projects.
                 </p>
-                <p className="mt-1.5 font-medium text-indigo-600">
-                  What would you like to do today?
+                <p className="mt-1 font-medium text-indigo-600">
+                  What would you like to work on?
                 </p>
               </div>
 
@@ -551,7 +580,7 @@ export const Dashboard: React.FC = () => {
                   <button
                     key={chip}
                     onClick={() => handleSendPrompt(chip)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 font-medium transition cursor-pointer border border-indigo-100"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 font-medium transition cursor-pointer border border-indigo-100 active:scale-95"
                   >
                     {chip}
                   </button>
@@ -573,12 +602,12 @@ export const Dashboard: React.FC = () => {
               </div>
               <button 
                 onClick={() => handleSendPrompt()}
-                className="w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-xs transition shrink-0"
+                className="w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-xs transition shrink-0 active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
-          </div>
+          </SpotlightCard>
 
           {/* Your Progress Card (Donut Chart) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs">

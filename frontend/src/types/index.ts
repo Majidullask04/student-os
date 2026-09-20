@@ -168,6 +168,21 @@ export interface Job {
   skillsToImprove: string[];
   description: string;
   applyUrl: string;
+  canonicalKey?: string;
+  fitEvaluation?: {
+    overallScore: number;
+    verdict: string;
+    verdictBadge: string;
+    scores: {
+      technical: number;
+      experience: number;
+      careerAlignment: number;
+      behavioral: number;
+    };
+    locationGate: string;
+    locationNote: string;
+    projectsAsEvidence?: string[];
+  };
 }
 
 export interface ChatMessage {
@@ -175,6 +190,14 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   timestamp: string;
   text: string;
+  toolCalls?: {
+    toolName: string;
+    args?: Record<string, any>;
+    resultSummary?: string;
+    resultPayload?: any;
+    executionTimeMs?: number;
+    status?: 'running' | 'completed' | 'failed';
+  }[];
   richCard?: {
     type: 'recommendation';
     title: string;

@@ -167,6 +167,28 @@ create table if not exists public.agent_memory (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 14. Student Projects Table (Hands-on evidence of knowledge)
+create table if not exists public.projects (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid references public.profiles(id) on delete cascade not null,
+    title text not null,
+    description text,
+    tech_stack text[] default array[]::text[],
+    repo_url text,
+    live_url text,
+    status text default 'Completed', -- 'Completed', 'In Progress', 'Planned'
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 15. Progress Log Table (Task completion audit and timestamped learning history)
+create table if not exists public.progress_history (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid references public.profiles(id) on delete cascade not null,
+    task_id text not null,
+    completed boolean default true,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- ==============================================================================
 -- Row Level Security (RLS) Policies
 -- Ensures each authenticated student can only access and modify their own data
@@ -181,6 +203,8 @@ alter table public.roadmap_subtasks enable row level security;
 alter table public.saved_resources enable row level security;
 alter table public.followed_creators enable row level security;
 alter table public.agent_memory enable row level security;
+alter table public.projects enable row level security;
+alter table public.progress_history enable row level security;
 
 -- Profiles: user can read/write own profile
 create policy "Users can view own profile" on public.profiles for select using (auth.uid() = id);
@@ -204,5 +228,7 @@ create policy "Jobs are readable by all" on public.jobs for select to authentica
 create policy "Users can manage saved resources" on public.saved_resources for all using (auth.uid() = user_id);
 create policy "Users can manage followed creators" on public.followed_creators for all using (auth.uid() = user_id);
 
--- Agent memory
+-- Agent memory & Projects & Progress
 create policy "Users can manage own agent memory" on public.agent_memory for all using (auth.uid() = user_id);
+create policy "Users can manage own projects" on public.projects for all using (auth.uid() = user_id);
+create policy "Users can manage own progress" on public.progress_history for all using (auth.uid() = user_id);

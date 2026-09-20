@@ -17,7 +17,11 @@ import {
   ExternalLink,
   GraduationCap,
   LayoutGrid,
-  ListFilter
+  ListFilter,
+  Gift,
+  Zap,
+  Laptop,
+  Flame
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Resource, Profile } from '../types';
@@ -373,21 +377,25 @@ export const Resources: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-900">Quick Filters</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Free Resources', icon: '🎁' },
-                { label: 'Short (< 30 mins)', icon: '⚡' },
-                { label: 'Project Based', icon: '💻' },
-                { label: 'Beginner Friendly', icon: '🌱' },
-                { label: 'Most Popular', icon: '🔥' },
-                { label: 'Recently Added', icon: '🕒' },
-              ].map((qf) => (
-                <button
-                  key={qf.label}
-                  onClick={() => setSearchQuery(qf.label.split(' ')[0])}
-                  className="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-100 text-xs font-medium text-left transition"
-                >
-                  <span className="mr-1">{qf.icon}</span> {qf.label}
-                </button>
-              ))}
+                { label: 'Free Resources', icon: Gift },
+                { label: 'Short (< 30m)', icon: Zap },
+                { label: 'Project Based', icon: Laptop },
+                { label: 'Beginner', icon: GraduationCap },
+                { label: 'Most Popular', icon: Flame },
+                { label: 'Recently Added', icon: Clock },
+              ].map((qf) => {
+                const Icon = qf.icon;
+                return (
+                  <button
+                    key={qf.label}
+                    onClick={() => setSearchQuery(qf.label.split(' ')[0])}
+                    className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-50 hover:bg-indigo-50/60 text-slate-700 hover:text-indigo-700 border border-slate-100 text-xs font-medium text-left transition"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>{qf.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
