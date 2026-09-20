@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Roadmap } from './pages/Roadmap';
@@ -29,32 +31,38 @@ const queryClient = new QueryClient({
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Standalone Authentication & Onboarding Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Authentication Routes */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Main Application with Fixed Dark Navy Sidebar & Shell */}
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/roadmap" element={<Roadmap />} />
-            <Route path="/assistant" element={<Assistant />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/creators" element={<Creators />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/career" element={<Career />} />
-            <Route path="/progress" element={<Progress />} />
-            <Route path="/academics" element={<Academics />} />
-            <Route path="/bookmarks" element={<Bookmarks />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
+            {/* Protected Routes (Supabase Session or Demo Guest) */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/onboarding" element={<Onboarding />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+              {/* Main Application with Fixed Dark Navy Sidebar & Shell */}
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/assistant" element={<Assistant />} />
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/creators" element={<Creators />} />
+                <Route path="/community" element={<Community />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/career" element={<Career />} />
+                <Route path="/progress" element={<Progress />} />
+                <Route path="/academics" element={<Academics />} />
+                <Route path="/bookmarks" element={<Bookmarks />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };
