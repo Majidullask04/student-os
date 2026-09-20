@@ -17,6 +17,8 @@ export interface Profile {
   timeCommitmentHours: number;
   skills: string[];
   followedCreatorIds: string[];
+  onboardingCompleted?: boolean;
+  diagnosticBaseline?: Record<string, any>;
 }
 
 export interface Skill {
@@ -151,6 +153,11 @@ export interface Project {
   difficulty: 'Beginner Friendly' | 'Intermediate' | 'Advanced';
   category: string;
   thumbnailUrl?: string;
+  commitSha?: string;
+  branch?: string;
+  stars?: number;
+  lastSynced?: string;
+  ciStatus?: 'passing' | 'running' | 'failed';
 }
 
 export interface Job {
@@ -240,4 +247,33 @@ export interface ProgressMetric {
   currentStreak: number;
   roadmapPercentage: number;
   skillGrowthPercentage: number;
+}
+
+export interface AcademicCourse {
+  id: string;
+  code: string;
+  name: string;
+  professor?: string;
+  credits: number;
+  grade?: string;
+  attendance?: string;
+  progress: number;
+  semester?: string;
+}
+
+export interface AcademicExam {
+  id: string;
+  title: string;
+  courseCode?: string;
+  date: string;
+  time: string;
+  room: string;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  hours: number;
+  taskId: string;
+  taskTitle: string;
 }

@@ -187,17 +187,52 @@ class SupabaseService:
                                 for t in m.get("roadmap_tasks", [])
                             ]
                         })
+                    modules_list = [
+                        {
+                            "id": f"mod-{st.get('stageNumber', i + 1)}",
+                            "number": st.get("stageNumber", i + 1),
+                            "title": st.get("title", f"Stage {i + 1}"),
+                            "description": st.get("description", ""),
+                            "status": st.get("status", "Upcoming"),
+                            "totalTasks": len(st.get("tasks", [])),
+                            "completedTasks": len([t for t in st.get("tasks", []) if t.get("completed")]),
+                            "percentage": st.get("percentage", 0),
+                            "tasks": st.get("tasks", []),
+                            "whyThisStep": st.get("whyThisStep", ""),
+                            "additionalResources": st.get("additionalResources", [])
+                        }
+                        for i, st in enumerate(stages)
+                    ]
                     return {
                         "id": raw.get("id"),
                         "user_id": user_id,
                         "goal": raw.get("goal"),
                         "overallPercentage": raw.get("overall_percentage", 0),
-                        "stages": stages
+                        "stages": stages,
+                        "modules": modules_list
                     }
             except Exception as e:
                 print(f"[Supabase] get_current_roadmap error: {e}")
 
-        return db.roadmaps.get(user_id)
+        rm = db.roadmaps.get(user_id)
+        if rm and "stages" in rm and ("modules" not in rm or not rm["modules"]):
+            rm["modules"] = [
+                {
+                    "id": f"mod-{st.get('stageNumber', i + 1)}",
+                    "number": st.get("stageNumber", i + 1),
+                    "title": st.get("title", f"Stage {i + 1}"),
+                    "description": st.get("description", ""),
+                    "status": st.get("status", "Upcoming"),
+                    "totalTasks": len(st.get("tasks", [])),
+                    "completedTasks": len([t for t in st.get("tasks", []) if t.get("completed")]),
+                    "percentage": st.get("percentage", 0),
+                    "tasks": st.get("tasks", []),
+                    "whyThisStep": st.get("whyThisStep", ""),
+                    "additionalResources": st.get("additionalResources", [])
+                }
+                for i, st in enumerate(rm["stages"])
+            ]
+        return rm
 
     async def save_roadmap(
         self, 
@@ -207,6 +242,22 @@ class SupabaseService:
         overall_percentage: int = 0
     ) -> Dict[str, Any]:
         roadmap_id = f"roadmap-{user_id}"
+        modules_list = [
+            {
+                "id": f"mod-{st.get('stageNumber', i + 1)}",
+                "number": st.get("stageNumber", i + 1),
+                "title": st.get("title", f"Stage {i + 1}"),
+                "description": st.get("description", ""),
+                "status": st.get("status", "Upcoming"),
+                "totalTasks": len(st.get("tasks", [])),
+                "completedTasks": len([t for t in st.get("tasks", []) if t.get("completed")]),
+                "percentage": st.get("percentage", 0),
+                "tasks": st.get("tasks", []),
+                "whyThisStep": st.get("whyThisStep", ""),
+                "additionalResources": st.get("additionalResources", [])
+            }
+            for i, st in enumerate(stages)
+        ]
         roadmap_obj = {
             "id": roadmap_id,
             "user_id": user_id,
@@ -214,6 +265,7 @@ class SupabaseService:
             "targetRole": goal,
             "overallPercentage": overall_percentage,
             "stages": stages,
+            "modules": modules_list,
             "updated_at": datetime.utcnow().isoformat()
         }
         db.roadmaps[user_id] = roadmap_obj

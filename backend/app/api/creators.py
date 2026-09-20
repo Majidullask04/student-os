@@ -1,28 +1,29 @@
 from fastapi import APIRouter
 from app.schemas.agent import FollowCreatorRequest
 
+from app.db.database import db
+
 router = APIRouter(prefix="/creators", tags=["creators"])
 
 @router.get("")
 async def get_creators():
-    return [
-        {
-            "id": "karpathy",
-            "name": "Andrej Karpathy",
-            "handle": "@karpathy",
-            "followers": "1.1M+",
-            "bio": "Former Tesla AI, OpenAI. Explains complex AI concepts simply.",
-            "isFollowing": True
-        },
-        {
-            "id": "kunalkushwaha",
-            "name": "Kunal Kushwaha",
-            "handle": "@kunalkushwaha",
-            "followers": "1.2M+",
-            "bio": "Teaches DevOps, DSA, web development and open source.",
-            "isFollowing": True
-        }
-    ]
+    results = []
+    for cid, c in db.creators.items():
+        results.append({
+            "id": c["id"],
+            "name": c["name"],
+            "handle": c["handle"],
+            "followers": c["followers"],
+            "bio": c["bio"],
+            "avatarUrl": c.get("avatar_url", ""),
+            "isFollowing": cid in db.followed_creators.get("user-1", []),
+            "tags": c.get("tags", []),
+            "platform": c.get("platform", "YouTube"),
+            "categories": ["AI/ML"] if "AI" in str(c.get("tags")) else ["Web Dev", "DevOps"],
+            "featuredSeries": c.get("featured_series", []),
+            "whyRelevant": c.get("why_relevant", "")
+        })
+    return results
 
 @router.post("/follow")
 async def follow_creator(req: FollowCreatorRequest):

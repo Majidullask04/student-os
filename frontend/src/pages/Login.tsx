@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   CheckCircle2, 
   ArrowRight, 
-  Sparkles, 
   Lock, 
   Mail,
   AlertCircle
@@ -16,9 +15,9 @@ import { api } from '../services/api';
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('majidulla@studentos.dev');
-  const [password, setPassword] = useState('password123');
-  const [name, setName] = useState('Majidulla');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -57,7 +56,8 @@ export const Login: React.FC = () => {
 
         localStorage.removeItem('student_os_demo_guest');
         await api.login({ email, password });
-        navigate('/');
+        const onboarded = await api.isOnboarded();
+        navigate(onboarded ? '/' : '/onboarding');
       }
     } catch (err: any) {
       console.warn("Supabase Auth notice:", err);
@@ -67,7 +67,8 @@ export const Login: React.FC = () => {
         // Offline demo mode fallback
         localStorage.setItem('student_os_demo_guest', 'true');
         await api.login({ email, password });
-        navigate('/');
+        const onboarded = await api.isOnboarded();
+        navigate(onboarded ? '/' : '/onboarding');
       }
     } finally {
       setLoading(false);
@@ -87,15 +88,17 @@ export const Login: React.FC = () => {
     } catch (err) {
       console.warn("OAuth redirect note:", err);
       localStorage.setItem('student_os_demo_guest', 'true');
-      navigate('/');
+      const onboarded = await api.isOnboarded();
+      navigate(onboarded ? '/' : '/onboarding');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoAccess = () => {
+  const handleDemoAccess = async () => {
     localStorage.setItem('student_os_demo_guest', 'true');
-    navigate('/');
+    const onboarded = await api.isOnboarded();
+    navigate(onboarded ? '/' : '/onboarding');
   };
 
   const features = [
@@ -108,50 +111,64 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-white">
-      {/* Left Dark Navy Panel */}
-      <div className="lg:col-span-6 bg-[#0B1120] text-white p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Brand */}
-        <div className="relative z-10">
-          <StudentOsLogo size={42} showText={true} theme="dark" />
+      {/* Left Engineering Showcase Panel */}
+      <div className="lg:col-span-6 bg-[#090D16] text-white p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden border-r border-slate-800 bg-dot-grid-dark">
+        {/* Brand & System Status */}
+        <div className="relative z-10 flex items-center justify-between">
+          <StudentOsLogo size={36} showText={true} theme="dark" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Kernel v2.4</span>
+          </div>
         </div>
 
-        {/* Center Value Pitch */}
-        <div className="relative z-10 my-auto py-12 space-y-8 max-w-lg">
+        {/* Center Technical Pitch & Interactive Terminal */}
+        <div className="relative z-10 my-auto py-8 space-y-6 max-w-lg">
           <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-semibold text-indigo-400 mb-4">
-              <Sparkles className="w-3.5 h-3.5" />
-              Autonomous Learning Operating System
-            </span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
-              One platform to guide your entire engineering journey.
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[11px] font-mono font-semibold text-indigo-400 mb-3">
+              <span>AGY://STUDENT-OS/CORE</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-snug">
+              The engineering operating system for ambitious builders.
             </h1>
-            <p className="text-slate-400 text-sm mt-3 leading-relaxed">
-              Student OS bridges the gap between passive tutorial watching and industry job readiness using adaptive roadmaps and creator curation.
+            <p className="text-slate-400 text-xs sm:text-sm mt-2.5 leading-relaxed">
+              Synthesizes real-time knowledge graphs, multi-stage roadmaps, and 5-dimensional career gap analysis for production readiness.
             </p>
           </div>
 
-          <div className="space-y-3.5 pt-2">
-            {features.map((feat, idx) => (
-              <div key={idx} className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                </div>
-                <span className="text-xs font-medium text-slate-300 leading-normal">{feat}</span>
+          {/* System Terminal Simulator (Engineer Grade) */}
+          <div className="rounded-2xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden font-mono text-[11px]">
+            <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-900/90 border-b border-slate-800 text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                <span className="ml-2 text-[10px] text-slate-400">runtime-telemetry.log</span>
               </div>
-            ))}
+              <span className="text-[10px] text-emerald-400 font-semibold">● LIVE</span>
+            </div>
+
+            <div className="p-4 space-y-1.5 text-slate-300 leading-relaxed overflow-x-auto">
+              <p className="text-slate-500">// Bootstrapping agentic context</p>
+              <p><span className="text-indigo-400">[agent:init]</span> runtime initialized on local core (port 8000)</p>
+              <p><span className="text-emerald-400">[rag:embed]</span> 768-dim dense embedding vector index synced</p>
+              <p><span className="text-purple-400">[tenant:guard]</span> strict user tenant isolation active</p>
+              <p><span className="text-amber-400">[eval:engine]</span> 5D career readiness scoring loaded (100% pass)</p>
+              <p className="text-slate-400 pt-1 flex items-center gap-1.5">
+                <span className="text-indigo-400">➜</span>
+                <span className="text-emerald-300 animate-pulse">Awaiting student authentication...</span>
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Footer info */}
-        <div className="relative z-10 text-xs text-slate-500 flex items-center justify-between border-t border-slate-800/80 pt-6">
+        <div className="relative z-10 text-xs text-slate-500 flex items-center justify-between border-t border-slate-800/80 pt-5 font-mono">
           <span>&copy; 2026 Student OS Platform</span>
-          <div className="flex items-center gap-4">
-            <span className="hover:text-slate-400 cursor-pointer">Privacy</span>
-            <span className="hover:text-slate-400 cursor-pointer">Terms</span>
-            <span className="hover:text-slate-400 cursor-pointer">System Status</span>
+          <div className="flex items-center gap-4 text-[11px]">
+            <span className="text-slate-400 hover:text-slate-200 cursor-pointer">v2.4.0</span>
+            <span className="text-slate-400 hover:text-slate-200 cursor-pointer">Docs</span>
+            <span className="text-slate-400 hover:text-slate-200 cursor-pointer">Security</span>
           </div>
         </div>
       </div>
@@ -231,7 +248,7 @@ export const Login: React.FC = () => {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Majidulla"
+                  placeholder="e.g. Alex Johnson"
                   className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-400"
                 />
               </div>
@@ -291,7 +308,7 @@ export const Login: React.FC = () => {
               onClick={handleDemoAccess}
               className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
             >
-              1-Click Demo Access (Explore as Majidulla)
+              1-Click Guest Tour (Explore Demo Environment)
             </button>
           </div>
         </div>

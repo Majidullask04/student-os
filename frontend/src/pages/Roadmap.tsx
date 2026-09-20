@@ -4,7 +4,9 @@ import {
   Circle, 
   Clock, 
   Database, 
-  Sparkles, 
+  Target,
+  ShieldCheck,
+  Cpu, 
   FolderGit2, 
   BookOpen, 
   ExternalLink, 
@@ -77,8 +79,17 @@ export const Roadmap: React.FC = () => {
     }
   };
 
+  const currentModules: RoadmapModule[] = 
+    (roadmap?.modules && roadmap.modules.length > 0) 
+      ? roadmap.modules 
+      : mockRoadmap.modules;
+  const currentStages = 
+    (roadmap?.stages && roadmap.stages.length > 0) 
+      ? roadmap.stages 
+      : mockRoadmap.stages;
+
   const selectedModule: RoadmapModule = 
-    roadmap.modules.find(m => m.id === selectedModuleId) || roadmap.modules[1] || roadmap.modules[0];
+    currentModules.find(m => m.id === selectedModuleId) || currentModules[1] || currentModules[0];
 
   const handleToggleSubTask = (taskId: string, subTaskId: string, currentCompleted: boolean) => {
     api.markTaskProgress({ taskId, subTaskId, completed: !currentCompleted }).then(res => {
@@ -132,16 +143,16 @@ export const Roadmap: React.FC = () => {
           {/* Connecting line */}
           <div className="absolute top-4 left-8 right-8 h-0.5 bg-slate-200 -z-0" />
 
-          {roadmap.stages.map((st) => {
+          {currentStages.map((st) => {
             const isCompleted = st.status === 'Completed';
             const isInProgress = st.status === 'In Progress';
             const isNext = st.status === 'Next';
 
             return (
               <div 
-                key={st.id} 
+                key={st.id || `st-${st.stageNumber}`} 
                 onClick={() => {
-                  const mod = roadmap.modules.find(m => m.number === st.stageNumber);
+                  const mod = currentModules.find(m => m.number === st.stageNumber);
                   if (mod) setSelectedModuleId(mod.id);
                 }}
                 className="flex flex-col items-center relative z-10 text-center px-1 cursor-pointer group"
@@ -186,7 +197,7 @@ export const Roadmap: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              {roadmap.modules.map((mod) => {
+              {currentModules.map((mod) => {
                 const isSelected = mod.id === selectedModule.id;
                 const isCompleted = mod.percentage === 100;
                 const isInProgress = mod.percentage > 0 && mod.percentage < 100;
@@ -276,10 +287,10 @@ export const Roadmap: React.FC = () => {
               <div className="text-right flex flex-col items-end gap-1.5">
                 <button
                   onClick={() => handleOpenQuiz(selectedModule.title)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 shadow-2xs transition cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-2xs transition cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Test Skill Mastery</span>
+                  <Target className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Verify Skill Mastery</span>
                 </button>
                 <span className="text-[11px] font-semibold text-slate-500">
                   {selectedModule.completedTasks} / {selectedModule.totalTasks} completed ({selectedModule.percentage}%)
@@ -296,8 +307,8 @@ export const Roadmap: React.FC = () => {
                 <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
-                        <Sparkles className="w-4 h-4" />
+                      <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                        <ShieldCheck className="w-4 h-4" />
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-slate-900">
@@ -381,9 +392,9 @@ export const Roadmap: React.FC = () => {
                         <button
                           onClick={handleSubmitQuiz}
                           disabled={submittingQuiz || Object.keys(selectedAnswers).length === 0}
-                          className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition shadow-xs disabled:opacity-50"
+                          className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs disabled:opacity-50"
                         >
-                          <Sparkles className="w-4 h-4" />
+                          <CheckCircle2 className="w-4 h-4" />
                           <span>{submittingQuiz ? 'Evaluating Answers...' : 'Submit Assessment'}</span>
                         </button>
                       </div>
@@ -715,9 +726,9 @@ export const Roadmap: React.FC = () => {
           <SpotlightCard className="p-5" spotlightColor="rgba(99, 102, 241, 0.12)">
             <div className="flex items-center gap-2 mb-2.5">
               <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Cpu className="w-3.5 h-3.5" />
               </div>
-              <h3 className="text-xs font-bold text-slate-900">Why this step?</h3>
+              <h3 className="text-xs font-bold text-slate-900">Architectural Context</h3>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
               {selectedModule.whyThisStep || 'This module provides fundamental building blocks needed for subsequent milestones.'}

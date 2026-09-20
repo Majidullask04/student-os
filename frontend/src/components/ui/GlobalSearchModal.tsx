@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, BookOpen, User, FolderGit2, Briefcase, X, ArrowRight } from 'lucide-react';
-import { mockResources, mockCreators, mockProjects, mockJobs, mockRoadmap } from '../../mocks/data';
+import { Search, Bot, Compass, BookOpen, User, FolderGit2, Briefcase, X, ArrowRight } from 'lucide-react';
+import { api } from '../../services/api';
+import { Resource, Creator, RoadmapModule } from '../../types';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -10,12 +11,24 @@ interface GlobalSearchModalProps {
 
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('');
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [modules, setModules] = useState<RoadmapModule[]>([]);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
+      Promise.all([
+        api.getResources(),
+        api.getCreators(),
+        api.getRoadmap()
+      ]).then(([res, cr, rd]) => {
+        setResources(res);
+        setCreators(cr);
+        setModules(rd.modules || []);
+      }).catch(console.error);
     } else {
       setQuery('');
     }
@@ -41,16 +54,16 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
   const trimmed = query.trim().toLowerCase();
 
   const filteredResources = trimmed 
-    ? mockResources.filter(r => r.title.toLowerCase().includes(trimmed) || r.category.toLowerCase().includes(trimmed))
-    : mockResources.slice(0, 3);
+    ? resources.filter(r => r.title.toLowerCase().includes(trimmed) || r.category.toLowerCase().includes(trimmed))
+    : resources.slice(0, 3);
 
   const filteredCreators = trimmed
-    ? mockCreators.filter(c => c.name.toLowerCase().includes(trimmed) || c.tags.some(t => t.toLowerCase().includes(trimmed)))
-    : mockCreators.slice(0, 3);
+    ? creators.filter(c => c.name.toLowerCase().includes(trimmed) || c.tags.some(t => t.toLowerCase().includes(trimmed)))
+    : creators.slice(0, 3);
 
   const filteredModules = trimmed
-    ? mockRoadmap.modules.filter(m => m.title.toLowerCase().includes(trimmed) || m.tasks.some(t => t.title.toLowerCase().includes(trimmed)))
-    : mockRoadmap.modules.slice(0, 2);
+    ? modules.filter(m => m.title.toLowerCase().includes(trimmed) || m.tasks.some(t => t.title.toLowerCase().includes(trimmed)))
+    : modules.slice(0, 2);
 
   const handleSelect = (path: string) => {
     navigate(path);
@@ -103,8 +116,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
               className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-white/80 rounded-xl transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
-                <span>Ask AI Agent: <strong>&ldquo;{query}&rdquo;</strong></span>
+                <Bot className="w-4 h-4 text-indigo-600" />
+                <span>Query Assistant Engine: <strong>&ldquo;{query}&rdquo;</strong></span>
               </div>
               <span className="flex items-center text-xs text-indigo-500 font-medium">
                 Enter <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -146,8 +159,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
           {/* Resources */}
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              Recommended Resources
+              <Compass className="w-3.5 h-3.5" />
+              Verified Learning Resources
             </div>
             <div className="space-y-1">
               {filteredResources.map((r) => (

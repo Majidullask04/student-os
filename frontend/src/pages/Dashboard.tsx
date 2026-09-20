@@ -16,7 +16,7 @@ import {
   Mic, 
   ArrowRight, 
   ExternalLink,
-  Sparkles,
+  Bot,
   Code2,
   Briefcase,
   Layers,
@@ -24,8 +24,8 @@ import {
   Sun
 } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
-import { api } from '../services/api';
-import { mockProfile, mockCreators, mockResources, mockRoadmap } from '../mocks/data';
+import { api, getDynamicFallbackProfile } from '../services/api';
+import { Profile, Roadmap, ProgressMetric, Creator, Resource } from '../types';
 import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
 import { ShinyText } from '../components/ui/ShinyText';
@@ -35,53 +35,58 @@ import { Magnet } from '../components/ui/Magnet';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(mockProfile);
-  const [focusTasks, setFocusTasks] = useState([
-    { id: '1', text: 'Complete FastAPI tutorial', completed: false },
-    { id: '2', text: 'Watch Karpathy video (Agents)', completed: true },
-    { id: '3', text: 'Update project README', completed: false },
-    { id: '4', text: 'Practice DSA (30 mins)', completed: false },
-  ]);
-
-  const [activeModuleTasks, setActiveModuleTasks] = useState([
-    { id: 'amt-1', title: 'Learn HTTP & REST APIs', completed: true },
-    { id: 'amt-2', title: 'Set up FastAPI project', completed: true },
-    { id: 'amt-3', title: 'Authentication with JWT', completed: false },
-    { id: 'amt-4', title: 'Connect to PostgreSQL', completed: false },
-    { id: 'amt-5', title: 'Build a small CRUD app', completed: false },
-  ]);
-
+  const [profile, setProfile] = useState<Profile>(getDynamicFallbackProfile());
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
+  const [focusTasks, setFocusTasks] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<ProgressMetric>({
+    topicsCompleted: 0,
+    totalTopics: 1,
+    learningHours: 0,
+    projectsCount: 0,
+    activeProjects: 0,
+    currentStreak: 1,
+    roadmapPercentage: 0,
+    skillGrowthPercentage: 0,
+  });
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [chatInput, setChatInput] = useState('');
 
   useEffect(() => {
     api.getProfile().then(setProfile);
+    api.getRoadmap().then(setRoadmap);
+    api.getTodaysFocus().then(setFocusTasks);
+    api.getProgressMetrics().then(setMetrics);
+    api.getCreators().then(setCreators);
+    api.getRecommendedResources().then(setResources);
   }, []);
 
   const handleToggleFocus = (id: string) => {
-    setFocusTasks(prev => prev.map(t => {
-      if (t.id === id) {
-        const nextState = !t.completed;
-        if (nextState) {
-          confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
-        }
-        return { ...t, completed: nextState };
-      }
-      return t;
-    }));
+    const t = focusTasks.find(x => x.id === id);
+    const nextState = !t?.completed;
+    if (nextState) {
+      confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
+    }
+    api.toggleFocusItem(id).then(items => {
+      setFocusTasks([...items]);
+      api.getRoadmap().then(setRoadmap);
+      api.getProgressMetrics().then(setMetrics);
+    });
   };
 
-  const handleToggleModuleTask = (id: string) => {
-    setActiveModuleTasks(prev => prev.map(t => {
-      if (t.id === id) {
-        const nextState = !t.completed;
-        if (nextState) {
-          confetti({ particleCount: 40, spread: 70, origin: { y: 0.7 } });
-        }
-        api.markTaskProgress({ taskId: id, completed: nextState });
-        return { ...t, completed: nextState };
-      }
-      return t;
-    }));
+  const handleToggleModuleTask = (taskId: string) => {
+    if (!activeModule) return;
+    const currentTask = activeModule.tasks.find(t => t.id === taskId);
+    if (!currentTask) return;
+    const nextState = !currentTask.completed;
+    if (nextState) {
+      confetti({ particleCount: 40, spread: 70, origin: { y: 0.7 } });
+    }
+    api.markTaskProgress({ taskId, completed: nextState }).then(res => {
+      setRoadmap(res.roadmap);
+      api.getProgressMetrics().then(setMetrics);
+      api.getTodaysFocus().then(setFocusTasks);
+    });
   };
 
   const handleSendPrompt = (promptText?: string) => {
@@ -90,15 +95,27 @@ export const Dashboard: React.FC = () => {
     navigate(`/assistant?prompt=${encodeURIComponent(text.trim())}`);
   };
 
-  // 6 Stages for Dashboard Stepper
-  const dashboardStages = [
-    { num: 1, title: 'Foundations', status: 'Completed' },
-    { num: 2, title: 'Backend & APIs', status: 'In Progress' },
-    { num: 3, title: 'AI & LLMs', status: 'Next' },
-    { num: 4, title: 'Build Projects', status: 'Upcoming' },
-    { num: 5, title: 'Deploy & DevOps', status: 'Upcoming' },
-    { num: 6, title: 'Career & Jobs', status: 'Upcoming' },
-  ];
+  // Derive dynamic active module (first in progress or incomplete)
+  const activeModule = roadmap?.modules?.find(m => m.status === 'In Progress' || m.percentage < 100) || roadmap?.modules?.[0];
+  const activeModuleTasks = activeModule?.tasks || [];
+
+  // Derive dynamic stages from the user's roadmap
+  const dashboardStages = roadmap?.stages && roadmap.stages.length > 0
+    ? roadmap.stages.map(st => ({
+        num: st.stageNumber,
+        title: st.title,
+        status: st.status
+      }))
+    : [
+        { num: 1, title: 'Foundations', status: 'In Progress' },
+        { num: 2, title: 'Core Concepts', status: 'Upcoming' },
+        { num: 3, title: 'AI & Systems', status: 'Upcoming' },
+        { num: 4, title: 'Build Projects', status: 'Upcoming' },
+        { num: 5, title: 'Deploy & DevOps', status: 'Upcoming' },
+        { num: 6, title: 'Career & Jobs', status: 'Upcoming' },
+      ];
+
+  const currentStageObj = roadmap?.stages?.find(s => s.status === 'In Progress' || s.status === 'Next') || roadmap?.stages?.[0];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -127,23 +144,34 @@ export const Dashboard: React.FC = () => {
                 GOAL: {profile.goal.toUpperCase()}
               </span>
               <span>•</span>
-              <span>Stage 2 in progress</span>
+              <span>Stage {currentStageObj?.stageNumber || 1} in progress ({currentStageObj?.title || 'Foundations'})</span>
             </div>
           </div>
 
-          {/* Student Profile Card */}
-          <div className="flex items-center gap-3.5 self-start md:self-center shrink-0">
-            <div className="relative group">
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shadow-xs ring-2 ring-slate-200 bg-slate-100 flex items-center justify-center">
-                <img 
-                  src="/student-avatar.jpg" 
-                  alt="Majidulla student profile" 
-                  className="w-full h-full object-cover"
-                />
+          {/* Engineering Workspace Status Panel */}
+          <div className="bg-slate-900 text-slate-200 rounded-2xl p-4 border border-slate-800 shadow-xs space-y-2.5 min-w-[240px] font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="font-semibold text-white">LIVE WORKSPACE</span>
               </div>
-              <div className="absolute -bottom-1.5 -right-1.5 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[9px] font-bold tracking-wider shadow-xs border border-white flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>ONLINE</span>
+              <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">v2.4</span>
+            </div>
+            <div className="space-y-1 text-[11px]">
+              <div className="flex justify-between text-slate-400">
+                <span>Student:</span>
+                <span className="text-slate-200 font-semibold">{profile.name}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Milestone:</span>
+                <span className="text-indigo-300 truncate max-w-[130px]">{currentStageObj?.title || 'Foundations'}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Completion:</span>
+                <span className="text-emerald-400 font-bold">{metrics.roadmapPercentage}%</span>
               </div>
             </div>
           </div>
@@ -183,7 +211,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 leading-tight">
-                <CountUp end={12} duration={1000} /> days
+                <CountUp end={metrics.currentStreak} duration={1000} /> days
               </h3>
               <p className="text-[11px] font-medium text-slate-500 mt-1">
                 Continuous activity
@@ -204,14 +232,14 @@ export const Dashboard: React.FC = () => {
             <div>
               <div className="flex items-baseline justify-between">
                 <h3 className="text-base font-bold text-slate-900 leading-tight">
-                  <CountUp end={28} duration={1000} /> <span className="text-xs text-slate-400 font-normal">/ 120</span>
+                  <CountUp end={metrics.topicsCompleted} duration={1000} /> <span className="text-xs text-slate-400 font-normal">/ {metrics.totalTopics}</span>
                 </h3>
                 <span className="text-[11px] font-semibold text-slate-600">
-                  <CountUp end={23} suffix="%" duration={1000} />
+                  <CountUp end={metrics.roadmapPercentage} suffix="%" duration={1000} />
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-1 mt-2 overflow-hidden">
-                <div className="bg-indigo-600 h-1 rounded-full transition-all duration-500" style={{ width: '23%' }} />
+                <div className="bg-indigo-600 h-1 rounded-full transition-all duration-500" style={{ width: `${metrics.roadmapPercentage}%` }} />
               </div>
             </div>
           </div>
@@ -228,16 +256,16 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 leading-tight">
-                <CountUp end={5} duration={800} />
+                <CountUp end={metrics.projectsCount} duration={800} />
               </h3>
               <p className="text-[11px] font-medium text-slate-500 mt-1">
-                3 in progress
+                {metrics.activeProjects} in progress
               </p>
             </div>
           </div>
         </SpotlightCard>
 
-        {/* Stat 5: Communities */}
+        {/* Stat 5: Communities / Mentors */}
         <SpotlightCard className="col-span-2 sm:col-span-1 p-4" spotlightColor="rgba(99, 102, 241, 0.08)">
           <div className="flex flex-col justify-between h-full space-y-2">
             <div className="flex items-center justify-between">
@@ -248,10 +276,10 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 leading-tight">
-                <CountUp end={12} duration={800} />
+                <CountUp end={profile.followedCreatorIds?.length || 0} duration={800} />
               </h3>
               <p className="text-[11px] font-medium text-slate-500 mt-1">
-                Active study groups
+                Followed mentors
               </p>
             </div>
           </div>
@@ -321,7 +349,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Active Module Card (Backend & APIs) */}
+            {/* Active Module Card */}
             <div className="mt-4 p-5 rounded-xl bg-slate-50/80 border border-slate-200/70 grid grid-cols-1 md:grid-cols-12 gap-5">
               {/* Module tasks checklist (7 cols) */}
               <div className="md:col-span-7 space-y-4">
@@ -331,19 +359,21 @@ export const Dashboard: React.FC = () => {
                       <Database className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900">Backend & APIs</h3>
-                      <p className="text-xs text-slate-500">3/8 completed</p>
+                      <h3 className="text-sm font-bold text-slate-900">{activeModule?.title || 'Core Foundations'}</h3>
+                      <p className="text-xs text-slate-500">
+                        {activeModule?.completedTasks || 0}/{activeModule?.totalTasks || 1} completed
+                      </p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-indigo-600">38%</span>
+                  <span className="text-xs font-bold text-indigo-600">{activeModule?.percentage || 0}%</span>
                 </div>
 
                 <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-indigo-600 h-1.5 rounded-full transition-all" style={{ width: '38%' }} />
+                  <div className="bg-indigo-600 h-1.5 rounded-full transition-all" style={{ width: `${activeModule?.percentage || 0}%` }} />
                 </div>
 
                 <div className="space-y-2 pt-1">
-                  {activeModuleTasks.map((t) => (
+                  {activeModuleTasks.slice(0, 5).map((t) => (
                     <div
                       key={t.id}
                       onClick={() => handleToggleModuleTask(t.id)}
@@ -359,6 +389,9 @@ export const Dashboard: React.FC = () => {
                       </span>
                     </div>
                   ))}
+                  {activeModuleTasks.length === 0 && (
+                    <p className="text-xs text-slate-400 italic py-2">All module tasks completed! Proceed to next stage.</p>
+                  )}
                 </div>
               </div>
 
@@ -372,50 +405,28 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="space-y-2.5">
-                  <a 
-                    href="https://youtube.com" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-3 p-2 rounded-xl bg-white hover:bg-indigo-50/50 border border-slate-200/60 shadow-2xs transition group"
-                  >
-                    <div className="w-12 h-10 rounded-lg overflow-hidden bg-emerald-700 text-white flex items-center justify-center shrink-0">
-                      <PlayCircle className="w-5 h-5 text-emerald-200" />
+                  {resources.slice(0, 3).map((res, rIdx) => (
+                    <a 
+                      key={res.id || rIdx}
+                      href={res.url || 'https://youtube.com'} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="flex items-center gap-3 p-2 rounded-xl bg-white hover:bg-indigo-50/50 border border-slate-200/60 shadow-2xs transition group"
+                    >
+                      <div className="w-12 h-10 rounded-lg overflow-hidden bg-indigo-900 text-white flex items-center justify-center shrink-0">
+                        <PlayCircle className="w-5 h-5 text-indigo-200" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-600">{res.title}</p>
+                        <p className="text-[10px] text-slate-400">{res.creator || res.platform} • {res.duration || 'Video'}</p>
+                      </div>
+                    </a>
+                  ))}
+                  {resources.length === 0 && (
+                    <div className="p-3 text-center text-xs text-slate-400">
+                      Loading tailored resources for your path...
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-600">FastAPI Full Course</p>
-                      <p className="text-[10px] text-slate-400">freeCodeCamp • 3:12:00</p>
-                    </div>
-                  </a>
-
-                  <a 
-                    href="https://youtube.com" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-3 p-2 rounded-xl bg-white hover:bg-indigo-50/50 border border-slate-200/60 shadow-2xs transition group"
-                  >
-                    <div className="w-12 h-10 rounded-lg overflow-hidden bg-blue-700 text-white flex items-center justify-center shrink-0">
-                      <PlayCircle className="w-5 h-5 text-blue-200" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-600">PostgreSQL for Beginners</p>
-                      <p className="text-[10px] text-slate-400">Fireship • 45:20</p>
-                    </div>
-                  </a>
-
-                  <a 
-                    href="https://youtube.com" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-3 p-2 rounded-xl bg-white hover:bg-indigo-50/50 border border-slate-200/60 shadow-2xs transition group"
-                  >
-                    <div className="w-12 h-10 rounded-lg overflow-hidden bg-indigo-900 text-white flex items-center justify-center shrink-0">
-                      <PlayCircle className="w-5 h-5 text-indigo-200" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-600">JWT Authentication in FastAPI</p>
-                      <p className="text-[10px] text-slate-400">Tech With Tim • 28:10</p>
-                    </div>
-                  </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -427,8 +438,8 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold text-slate-900">Top Creators for Your Path</h3>
+                  <Users2 className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-sm font-bold text-slate-900">Recommended Mentors for Your Path</h3>
                 </div>
                 <Link to="/creators" className="text-xs font-medium text-indigo-600 hover:underline">
                   View All →
@@ -436,7 +447,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between pt-1 overflow-x-auto gap-2">
-                {mockCreators.map((creator) => (
+                {creators.slice(0, 5).map((creator) => (
                   <Link 
                     key={creator.id} 
                     to="/creators" 
@@ -520,22 +531,31 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              {focusTasks.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => handleToggleFocus(t.id)}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition cursor-pointer text-xs group"
-                >
-                  {t.completed ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  ) : (
-                    <Circle className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 shrink-0" />
-                  )}
-                  <span className={`${t.completed ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}`}>
-                    {t.text}
-                  </span>
+              {focusTasks.length === 0 ? (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <p className="text-xs text-slate-500 font-medium">No active milestones for today.</p>
+                  <Link to="/roadmap" className="inline-block mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                    Select a Roadmap Target →
+                  </Link>
                 </div>
-              ))}
+              ) : (
+                focusTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => handleToggleFocus(t.id)}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition cursor-pointer text-xs group"
+                  >
+                    {t.completed ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 shrink-0" />
+                    )}
+                    <span className={`${t.completed ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}`}>
+                      {t.text}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </SpotlightCard>
 
@@ -545,9 +565,9 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Bot className="w-3.5 h-3.5" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">Ask Your AI Agent</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Student OS Co-Pilot</h3>
                 </div>
                 <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -634,7 +654,7 @@ export const Dashboard: React.FC = () => {
                   />
                   <path
                     className="text-emerald-500"
-                    strokeDasharray="28, 100"
+                    strokeDasharray={`${metrics.roadmapPercentage}, 100`}
                     strokeWidth="3.5"
                     strokeLinecap="round"
                     stroke="currentColor"
@@ -643,7 +663,7 @@ export const Dashboard: React.FC = () => {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-lg font-bold text-slate-900">28%</span>
+                  <span className="text-lg font-bold text-slate-900">{metrics.roadmapPercentage}%</span>
                 </div>
               </div>
 
@@ -651,19 +671,19 @@ export const Dashboard: React.FC = () => {
               <div className="space-y-1.5 text-xs">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Topics Completed</span>
-                  <span className="font-bold text-slate-800">28 / 120</span>
+                  <span className="font-bold text-slate-800">{metrics.topicsCompleted} / {metrics.totalTopics}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Projects</span>
-                  <span className="font-bold text-slate-800">5</span>
+                  <span className="font-bold text-slate-800">{metrics.projectsCount}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Learning Hours</span>
-                  <span className="font-bold text-slate-800">42 hrs</span>
+                  <span className="font-bold text-slate-800">{metrics.learningHours} hrs</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-500">Current Streak</span>
-                  <span className="font-bold text-orange-600">12 days</span>
+                  <span className="font-bold text-orange-600">{metrics.currentStreak} days</span>
                 </div>
               </div>
             </div>
@@ -677,13 +697,16 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Motivation Banner */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50/60 via-indigo-50/50 to-blue-50/60 border border-indigo-100/60 flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-2">
-        <p className="text-xs sm:text-sm text-slate-600 font-medium italic">
-          &ldquo;The best time to start was yesterday. The next best time is now.&rdquo;
-        </p>
-        <div className="font-handwriting text-lg sm:text-xl font-bold text-indigo-700 tracking-wide">
-          Build Skills · Build Your Future
+      {/* Bottom Production Telemetry Banner */}
+      <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-2 text-xs">
+        <div className="flex items-center gap-2 text-slate-500">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="font-semibold text-slate-700">Student OS Workspace</span>
+          <span>•</span>
+          <span>RAG Pipeline & Proof of Work Live</span>
+        </div>
+        <div className="font-mono text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+          Real Data Mode • Production Active
         </div>
       </div>
     </div>

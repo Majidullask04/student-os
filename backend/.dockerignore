@@ -9,7 +9,7 @@ venv/
 .pytest_cache/
 .git
 .github
-tests/
+# tests/ included for container verification
 scripts/
 *.md
 Dockerfile

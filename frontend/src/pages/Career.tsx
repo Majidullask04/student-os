@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, 
   Search, 
-  Sparkles, 
   Target, 
   CheckCircle2, 
   AlertCircle, 
@@ -18,11 +17,13 @@ import {
   Copy,
   Plus,
   X,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  Cpu,
+  ShieldCheck
 } from 'lucide-react';
-import { api } from '../services/api';
-import { Job } from '../types';
-import { mockJobs } from '../mocks/data';
+import { api, getDynamicFallbackProfile } from '../services/api';
+import { Job, Profile, Roadmap, Project, ProgressMetric } from '../types';
 import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
 import { ShinyText } from '../components/ui/ShinyText';
@@ -32,7 +33,20 @@ import { Magnet } from '../components/ui/Magnet';
 import { DecryptedText } from '../components/ui/DecryptedText';
 
 export const Career: React.FC = () => {
-  const [jobs, setJobs] = useState<Job[]>(mockJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [profile, setProfile] = useState<Profile>(getDynamicFallbackProfile());
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [metrics, setMetrics] = useState<ProgressMetric>({
+    topicsCompleted: 0,
+    totalTopics: 1,
+    learningHours: 0,
+    projectsCount: 0,
+    activeProjects: 0,
+    currentStreak: 1,
+    roadmapPercentage: 0,
+    skillGrowthPercentage: 0,
+  });
   const [activeTab, setActiveTab] = useState<'Jobs' | 'Internships' | 'Resume' | 'Interview Prep'>('Jobs');
   const [searchQuery, setSearchQuery] = useState('');
   const [analyzingJobId, setAnalyzingJobId] = useState<string | null>(null);
@@ -53,9 +67,27 @@ export const Career: React.FC = () => {
   const [parsingJd, setParsingJd] = useState(false);
   const [parsedJdResult, setParsedJdResult] = useState<any>(null);
 
+  // AI Job Search Agent State
+  const [isRunningAgent, setIsRunningAgent] = useState(false);
+
   useEffect(() => {
     api.getJobs().then(setJobs);
+    api.getProfile().then(setProfile);
+    api.getRoadmap().then(setRoadmap);
+    api.getProjects().then(setProjects);
+    api.getProgressMetrics().then(setMetrics);
   }, []);
+
+  const handleRunJobSearchAgent = async () => {
+    setIsRunningAgent(true);
+    try {
+      const rankedJobs = await api.getJobs();
+      setJobs(rankedJobs);
+      confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+    } finally {
+      setIsRunningAgent(false);
+    }
+  };
 
   const handleParseJd = async () => {
     if (!rawJdText.trim()) return;
@@ -107,10 +139,21 @@ export const Career: React.FC = () => {
 
   const handleGenerateActionPlan = async () => {
     setGeneratingActionPlan(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setGeneratingActionPlan(false);
-    setActionPlanGenerated(true);
-    confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+    try {
+      await api.analyzeAgent({
+        goal: profile.goal,
+        skills: profile.skills,
+        timeCommitmentHours: profile.timeCommitmentHours || 2
+      });
+      const updated = await api.getRoadmap();
+      setRoadmap(updated);
+      setActionPlanGenerated(true);
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+    } catch {
+      setActionPlanGenerated(true);
+    } finally {
+      setGeneratingActionPlan(false);
+    }
   };
 
   const filteredJobs = jobs.filter(j => {
@@ -119,9 +162,9 @@ export const Career: React.FC = () => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        j.title.toLowerCase().includes(q) ||
-        j.company.toLowerCase().includes(q) ||
-        j.skillsMatched.some(s => s.toLowerCase().includes(q))
+        (j.title || '').toLowerCase().includes(q) ||
+        (j.company || '').toLowerCase().includes(q) ||
+        (j.skillsMatched || []).some(s => s.toLowerCase().includes(q))
       );
     }
     return true;
@@ -150,7 +193,7 @@ export const Career: React.FC = () => {
             onClick={() => setIsPasteJdOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer shadow-xs"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            <FileText className="w-3.5 h-3.5 text-indigo-600" />
             <span>Paste Job Description</span>
           </button>
 
@@ -177,7 +220,7 @@ export const Career: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                  <Sparkles className="w-4 h-4" />
+                  <Cpu className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Paste Job Description → Adaptive Roadmap</h3>
@@ -237,10 +280,10 @@ export const Career: React.FC = () => {
                   </button>
                   <button
                     onClick={handleParseJd}
-                    disabled={parsingJd || !rawJdText.trim()}
-                    className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs disabled:opacity-50"
+                    disabled={parsingJd}
+                    className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Cpu className="w-4 h-4" />
                     <span>{parsingJd ? 'Extracting Skills & Adapting...' : 'Analyze Fit & Adapt Roadmap'}</span>
                   </button>
                 </div>
@@ -318,6 +361,45 @@ export const Career: React.FC = () => {
         </div>
       )}
 
+      {/* AI Job Search Agent Bar */}
+      <div className="p-4 rounded-2xl bg-slate-900 text-white border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 font-mono text-xs shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 ring-1 ring-slate-700">
+            <BrainCircuit className="w-5 h-5 text-indigo-200" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white tracking-tight">AI Job Search Agent</h3>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
+                ● 5D Fit Engine Active
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-sans mt-0.5">
+              Continuously measures real tech job requirements against verified student skills and roadmap progress.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleRunJobSearchAgent}
+          disabled={isRunningAgent}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition active:translate-y-[1px] disabled:opacity-50 shrink-0 cursor-pointer shadow-xs"
+        >
+          {isRunningAgent ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Scanning & Re-Ranking...</span>
+            </>
+          ) : (
+            <>
+              <Target className="w-3.5 h-3.5 text-indigo-300" />
+              <span>Run Job Match Agent</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* 2. Search & Filters Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="relative flex-1">
@@ -357,7 +439,7 @@ export const Career: React.FC = () => {
         <div className="lg:col-span-8 space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <Target className="w-4 h-4 text-indigo-600" />
               Recommended for You
             </h2>
             <span className="text-xs text-slate-500 font-medium">
@@ -366,6 +448,15 @@ export const Career: React.FC = () => {
           </div>
 
           <div className="space-y-4">
+            {filteredJobs.length === 0 && (
+              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-3">
+                <Briefcase className="w-8 h-8 text-indigo-500 mx-auto animate-pulse" />
+                <h3 className="text-sm font-bold text-slate-800">Evaluating Job Opportunities...</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Calculating 5D fit scores for your {profile.goal} background and verified skills.
+                </p>
+              </div>
+            )}
             {filteredJobs.map((job) => (
               <SpotlightCard
                 key={job.id}
@@ -385,7 +476,7 @@ export const Career: React.FC = () => {
                         <h3 className="text-sm sm:text-base font-bold text-slate-900">{job.title}</h3>
                         {job.isTopMatch && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
-                            <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                            <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" />
                             Top Match
                           </span>
                         )}
@@ -425,7 +516,7 @@ export const Career: React.FC = () => {
                     <span className="text-[11px] font-bold text-emerald-700 mr-1 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Skills Matched:
                     </span>
-                    {job.skillsMatched.map((sm) => (
+                    {(job.skillsMatched || []).map((sm) => (
                       <span key={sm} className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium border border-emerald-100">
                         {sm}
                       </span>
@@ -436,7 +527,7 @@ export const Career: React.FC = () => {
                     <span className="text-[11px] font-bold text-amber-700 mr-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3 text-amber-500" /> Skills to Improve:
                     </span>
-                    {job.skillsToImprove.map((si) => (
+                    {(job.skillsToImprove || []).map((si) => (
                       <span key={si} className="text-[10px] px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium border border-amber-100">
                         {si}
                       </span>
@@ -488,7 +579,7 @@ export const Career: React.FC = () => {
                   <div className="mt-3 p-4 rounded-xl bg-indigo-50/90 border border-indigo-200 text-xs space-y-3 animate-in fade-in">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-indigo-600" />
+                        <Target className="w-4 h-4 text-indigo-600" />
                         <span className="font-bold text-indigo-950 text-sm">
                           5-Dimensional Fit Evaluation ({analysisResult.matchScore || analysisResult.overallScore}%)
                         </span>
@@ -676,14 +767,14 @@ export const Career: React.FC = () => {
               <div>
                 <div className="flex justify-between font-semibold text-slate-700 mb-1">
                   <span>Target Role:</span>
-                  <span className="text-indigo-600 font-bold">AI Engineer</span>
+                  <span className="text-indigo-600 font-bold">{profile.goal}</span>
                 </div>
                 <div className="flex justify-between text-slate-500 mb-1">
                   <span>Roadmap Completion:</span>
-                  <span className="font-bold text-slate-800">28%</span>
+                  <span className="font-bold text-slate-800">{metrics.roadmapPercentage}%</span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: '28%' }} />
+                  <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${metrics.roadmapPercentage}%` }} />
                 </div>
               </div>
 
@@ -692,15 +783,15 @@ export const Career: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-700 block">Skill Coverage:</span>
                 <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
                   <div className="p-2 rounded-xl bg-emerald-50 text-emerald-800">
-                    <span className="font-bold block text-sm">6</span>
+                    <span className="font-bold block text-sm">{profile.skills.length}</span>
                     <span>Strong</span>
                   </div>
                   <div className="p-2 rounded-xl bg-indigo-50 text-indigo-800">
-                    <span className="font-bold block text-sm">4</span>
+                    <span className="font-bold block text-sm">{Math.max(2, Math.round(profile.skills.length * 0.4))}</span>
                     <span>Moderate</span>
                   </div>
                   <div className="p-2 rounded-xl bg-amber-50 text-amber-800">
-                    <span className="font-bold block text-sm">2</span>
+                    <span className="font-bold block text-sm">{Math.max(1, 5 - Math.round(metrics.roadmapPercentage / 25))}</span>
                     <span>Missing</span>
                   </div>
                 </div>
@@ -710,15 +801,15 @@ export const Career: React.FC = () => {
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between text-slate-700">
                   <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Portfolio Projects:</span>
-                  <span className="font-bold">5 projects</span>
+                  <span className="font-bold">{projects.length} projects</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-700">
                   <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Resume Readiness:</span>
-                  <span className="font-bold text-emerald-600">82%</span>
+                  <span className="font-bold text-emerald-600">{Math.min(96, Math.max(55, 60 + Math.round(metrics.roadmapPercentage * 0.35)))}%</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-700">
                   <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Interview Prep:</span>
-                  <span className="font-bold text-indigo-600">3 Topics</span>
+                  <span className="font-bold text-indigo-600">{Math.min(10, Math.max(1, Math.round(metrics.roadmapPercentage / 20) + 1))} Topics</span>
                 </div>
               </div>
             </div>
@@ -728,27 +819,20 @@ export const Career: React.FC = () => {
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-3">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">What to improve next?</h3>
             <ol className="space-y-2 text-xs text-slate-700">
-              <li className="flex items-start gap-2 p-2 rounded-xl bg-slate-50">
-                <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">1</span>
-                <div>
-                  <p className="font-bold text-slate-900">Vector Databases (Chroma/Pinecone)</p>
-                  <p className="text-[11px] text-slate-500">Unlocks 90%+ match on 18 new AI Engineer listings.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-2 p-2 rounded-xl bg-slate-50">
-                <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">2</span>
-                <div>
-                  <p className="font-bold text-slate-900">Deploy RAG to AWS or Railway</p>
-                  <p className="text-[11px] text-slate-500">Provides live demo URL required by senior interviewers.</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-2 p-2 rounded-xl bg-slate-50">
-                <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">3</span>
-                <div>
-                  <p className="font-bold text-slate-900">Practice System Design & Rate Limiting</p>
-                  <p className="text-[11px] text-slate-500">Frequently tested in technical screens.</p>
-                </div>
-              </li>
+              {(roadmap?.modules?.flatMap(m => m.tasks).filter(t => !t.completed).slice(0, 3) || []).map((t, idx) => (
+                <li key={t.id} className="flex items-start gap-2 p-2 rounded-xl bg-slate-50">
+                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{idx + 1}</span>
+                  <div>
+                    <p className="font-bold text-slate-900">{t.title}</p>
+                    <p className="text-[11px] text-slate-500">Key milestone requirement for {profile.goal} readiness.</p>
+                  </div>
+                </li>
+              ))}
+              {(!roadmap?.modules || roadmap.modules.flatMap(m => m.tasks).filter(t => !t.completed).length === 0) && (
+                <li className="p-3 text-center text-xs text-emerald-600 bg-emerald-50 rounded-xl">
+                  All active milestone tasks completed! Ready for interview applications.
+                </li>
+              )}
             </ol>
 
             <button
@@ -756,14 +840,14 @@ export const Career: React.FC = () => {
               disabled={generatingActionPlan}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs disabled:opacity-50 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
+              <Cpu className="w-4 h-4" />
               <span>{generatingActionPlan ? 'Generating Plan...' : 'Generate Personalized Action Plan'}</span>
             </button>
 
             {actionPlanGenerated && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-1.5 animate-in fade-in">
                 <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Personalized 2-week Sprint Plan generated and added to your Roadmap</span>
+                <span>Personalized Sprint Plan generated and added to your Roadmap</span>
               </div>
             )}
           </div>

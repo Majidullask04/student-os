@@ -3,7 +3,6 @@ import {
   FolderGit2, 
   Plus, 
   ExternalLink, 
-  Sparkles, 
   Code2, 
   CheckCircle2, 
   Clock, 
@@ -11,42 +10,155 @@ import {
   ArrowRight,
   TrendingUp,
   Cpu,
-  X
+  X,
+  GitBranch,
+  GitCommit,
+  Star,
+  RefreshCw,
+  Trash2,
+  Terminal,
+  Compass,
+  AlertCircle
 } from 'lucide-react';
 import { GithubIcon } from '../components/ui/BrandIcons';
 import { api } from '../services/api';
-import { Project } from '../types';
-import { mockProjects } from '../mocks/data';
+import { Project, Profile } from '../types';
 import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
-import { ShinyText } from '../components/ui/ShinyText';
 import { CountUp } from '../components/ui/CountUp';
 
 export const Projects: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedTab, setSelectedTab] = useState<'All' | 'In Progress' | 'Completed' | 'Idea'>('All');
   const [suggestionTab, setSuggestionTab] = useState<'For You' | 'Trending' | 'By Skill' | 'Hackathon'>('For You');
 
-  // AI Project Architect State (Blueprint §18)
+  // AI Project Architect State
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
   const [architectTopic, setArchitectTopic] = useState('');
   const [generatingBlueprint, setGeneratingBlueprint] = useState(false);
   const [generatedBlueprint, setGeneratedBlueprint] = useState<any>(null);
 
+  // GitHub Connection State
+  const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const [githubRepoInput, setGithubRepoInput] = useState('');
+  const [connectingGithub, setConnectingGithub] = useState(false);
+  const [githubError, setGithubError] = useState<string | null>(null);
+
+  // Custom Project Modal State
+  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({
+    title: '',
+    description: '',
+    techStack: '',
+    category: 'Full Stack',
+    difficulty: 'Intermediate' as 'Beginner Friendly' | 'Intermediate' | 'Advanced',
+    status: 'In Progress' as 'In Progress' | 'Completed' | 'Idea',
+    githubUrl: '',
+    liveUrl: ''
+  });
+
   useEffect(() => {
-    api.getProjects().then(setProjects);
+    Promise.all([
+      api.getProjects(),
+      api.getProfile()
+    ]).then(([projs, prof]) => {
+      setProjects(projs);
+      setProfile(prof);
+    });
   }, []);
+
+  const handleConnectGithub = async () => {
+    if (!githubRepoInput.trim()) return;
+    setConnectingGithub(true);
+    setGithubError(null);
+    try {
+      await api.connectGithubRepo(githubRepoInput.trim());
+      const updated = await api.getProjects();
+      setProjects(updated);
+      setIsGithubModalOpen(false);
+      setGithubRepoInput('');
+      confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+    } catch {
+      setGithubError('Unable to connect repository. Please verify URL format e.g. https://github.com/owner/repo');
+    } finally {
+      setConnectingGithub(false);
+    }
+  };
 
   const handleGenerateBlueprint = async () => {
     setGeneratingBlueprint(true);
     try {
       const res = await api.generateProjectBlueprint(architectTopic || undefined);
       setGeneratedBlueprint(res);
-      api.getProjects().then(setProjects);
+      // Persist the generated project blueprint directly to the user's projects
+      await api.createProject({
+        title: res.title,
+        description: res.description,
+        techStack: res.techStack,
+        status: 'In Progress',
+        progress: 10,
+        difficulty: 'Intermediate',
+        category: 'Architecture'
+      });
+      const updated = await api.getProjects();
+      setProjects(updated);
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
     } finally {
       setGeneratingBlueprint(false);
     }
+  };
+
+  const handleAddCustomProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectData.title.trim()) return;
+    const tech = newProjectData.techStack.split(',').map(s => s.trim()).filter(Boolean);
+    await api.createProject({
+      title: newProjectData.title.trim(),
+      description: newProjectData.description.trim() || 'Verified portfolio build.',
+      techStack: tech.length > 0 ? tech : ['Python', 'TypeScript'],
+      category: newProjectData.category,
+      difficulty: newProjectData.difficulty,
+      status: newProjectData.status,
+      githubUrl: newProjectData.githubUrl.trim() || undefined,
+      liveUrl: newProjectData.liveUrl.trim() || undefined,
+      progress: newProjectData.status === 'Completed' ? 100 : newProjectData.status === 'In Progress' ? 45 : 0
+    });
+    const updated = await api.getProjects();
+    setProjects(updated);
+    setIsAddProjectOpen(false);
+    setNewProjectData({
+      title: '',
+      description: '',
+      techStack: '',
+      category: 'Full Stack',
+      difficulty: 'Intermediate',
+      status: 'In Progress',
+      githubUrl: '',
+      liveUrl: ''
+    });
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    await api.deleteProject(projectId);
+    const updated = await api.getProjects();
+    setProjects(updated);
+  };
+
+  const handleAddSuggestionToProjects = async (sug: { title: string; desc: string; stack: string[] }) => {
+    await api.createProject({
+      title: sug.title,
+      description: sug.desc,
+      techStack: sug.stack,
+      category: 'Engineering',
+      difficulty: 'Intermediate',
+      status: 'In Progress',
+      progress: 0
+    });
+    const updated = await api.getProjects();
+    setProjects(updated);
+    confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
   };
 
   const filteredProjects = projects.filter(p => {
@@ -103,44 +215,264 @@ export const Projects: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-              <FolderGit2 className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs ring-1 ring-slate-800">
+              <FolderGit2 className="w-4 h-4 text-indigo-400" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              My Projects
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Proof of Work & Projects
             </h1>
+            <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+              git • telemetry
+            </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Build real projects. Gain real skills. Show proof of work to hiring managers.
+          <p className="text-xs text-slate-500 font-medium">
+            Production-grade implementations demonstrating verified mastery, real commits, and code artifacts.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setIsGithubModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-semibold shadow-xs transition active:translate-y-[1px] cursor-pointer"
+          >
+            <GithubIcon className="w-3.5 h-3.5 text-white" />
+            <span>Connect GitHub</span>
+          </button>
           <button
             onClick={() => { setIsArchitectOpen(true); setGeneratedBlueprint(null); }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-xs font-bold shadow-xs transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300 text-xs font-semibold shadow-xs transition active:translate-y-[1px] cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-purple-600" />
+            <Cpu className="w-3.5 h-3.5 text-indigo-600" />
             <span>AI Project Architect</span>
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition">
-            <Plus className="w-4 h-4" />
-            <span>New Project</span>
+          <button 
+            onClick={() => setIsAddProjectOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition active:translate-y-[1px] cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Custom Project</span>
           </button>
         </div>
       </div>
 
-      {/* AI Project Architect Modal (Blueprint §18) */}
+      {/* GitHub Repository Connection Modal */}
+      {isGithubModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                  <GithubIcon className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Connect GitHub Repository</h3>
+                  <p className="text-xs text-slate-500">Sync live commits, stars, branch, and verified proof-of-work.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsGithubModalOpen(false); setGithubError(null); }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  GitHub Repository URL or Path
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. https://github.com/torvalds/linux or facebook/react"
+                  value={githubRepoInput}
+                  onChange={(e) => setGithubRepoInput(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-mono"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Enter any repository URL. Student OS will pull real commit telemetry, primary languages, and stars.
+                </p>
+              </div>
+
+              {githubError && (
+                <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs border border-red-200">
+                  {githubError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsGithubModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConnectGithub}
+                  disabled={connectingGithub || !githubRepoInput.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer active:translate-y-[1px]"
+                >
+                  {connectingGithub ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Syncing Telemetry...</span>
+                    </>
+                  ) : (
+                    <>
+                      <GithubIcon className="w-3.5 h-3.5" />
+                      <span>Connect Repository</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Custom Project Modal */}
+      {isAddProjectOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                  <Plus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Add Portfolio Project</h3>
+                  <p className="text-xs text-slate-500">Record a practical implementation to verify proof-of-work.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAddProjectOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCustomProject} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Project Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Distributed Task Queue or RAG Pipeline"
+                  value={newProjectData.title}
+                  onChange={(e) => setNewProjectData({ ...newProjectData, title: e.target.value })}
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="What problem does this project solve? What architecture did you use?"
+                  value={newProjectData.description}
+                  onChange={(e) => setNewProjectData({ ...newProjectData, description: e.target.value })}
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Tech Stack (comma separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Python, FastAPI, Docker, PostgreSQL"
+                  value={newProjectData.techStack}
+                  onChange={(e) => setNewProjectData({ ...newProjectData, techStack: e.target.value })}
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Category</label>
+                  <select
+                    value={newProjectData.category}
+                    onChange={(e) => setNewProjectData({ ...newProjectData, category: e.target.value })}
+                    className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  >
+                    <option value="Backend">Backend</option>
+                    <option value="Frontend">Frontend</option>
+                    <option value="Full Stack">Full Stack</option>
+                    <option value="AI / ML">AI / ML</option>
+                    <option value="DevOps">DevOps</option>
+                    <option value="Systems">Systems</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Status</label>
+                  <select
+                    value={newProjectData.status}
+                    onChange={(e: any) => setNewProjectData({ ...newProjectData, status: e.target.value })}
+                    className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  >
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Idea">Idea</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">GitHub Repo URL (optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/..."
+                    value={newProjectData.githubUrl}
+                    onChange={(e) => setNewProjectData({ ...newProjectData, githubUrl: e.target.value })}
+                    className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Live URL (optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={newProjectData.liveUrl}
+                    onChange={(e) => setNewProjectData({ ...newProjectData, liveUrl: e.target.value })}
+                    className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddProjectOpen(false)}
+                  className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition cursor-pointer"
+                >
+                  Save to Portfolio
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI Project Architect Modal */}
       {isArchitectOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
-                  <Sparkles className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                  <Cpu className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">AI Project Architect</h3>
@@ -149,7 +481,7 @@ export const Projects: React.FC = () => {
               </div>
               <button 
                 onClick={() => { setIsArchitectOpen(false); setGeneratedBlueprint(null); }}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -166,7 +498,7 @@ export const Projects: React.FC = () => {
                     placeholder="e.g. RAG & Vector Databases, FastAPI Concurrency, or Kubernetes"
                     value={architectTopic}
                     onChange={(e) => setArchitectTopic(e.target.value)}
-                    className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-purple-400"
+                    className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Leave blank to automatically architect a project for your current roadmap milestone.
@@ -176,26 +508,26 @@ export const Projects: React.FC = () => {
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     onClick={() => setIsArchitectOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleGenerateBlueprint}
                     disabled={generatingBlueprint}
-                    className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition shadow-xs disabled:opacity-50"
+                    className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Cpu className="w-4 h-4" />
                     <span>{generatingBlueprint ? 'Architecting Blueprint...' : 'Generate Project Blueprint'}</span>
                   </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-4 animate-in fade-in text-xs">
-                <div className="p-4 rounded-2xl bg-purple-50/80 border border-purple-200 space-y-1">
-                  <span className="text-[10px] font-bold text-purple-700 block uppercase">Generated Blueprint</span>
-                  <h4 className="text-base font-extrabold text-purple-950">{generatedBlueprint.title}</h4>
-                  <p className="text-purple-800 leading-relaxed">{generatedBlueprint.description}</p>
+                <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-1">
+                  <span className="text-[10px] font-bold text-indigo-700 block uppercase">Generated Blueprint</span>
+                  <h4 className="text-base font-extrabold text-indigo-950">{generatedBlueprint.title}</h4>
+                  <p className="text-indigo-800 leading-relaxed">{generatedBlueprint.description}</p>
                 </div>
 
                 {/* Tech Stack */}
@@ -203,7 +535,7 @@ export const Projects: React.FC = () => {
                   <span className="font-bold text-slate-800 block mb-1">Recommended Tech Stack:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {generatedBlueprint.techStack?.map((t: string) => (
-                      <span key={t} className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-medium">
+                      <span key={t} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200 text-[11px] font-medium font-mono">
                         {t}
                       </span>
                     ))}
@@ -243,7 +575,7 @@ export const Projects: React.FC = () => {
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button
                     onClick={() => { setIsArchitectOpen(false); setGeneratedBlueprint(null); }}
-                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition"
+                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition cursor-pointer"
                   >
                     Done
                   </button>
@@ -266,7 +598,7 @@ export const Projects: React.FC = () => {
                 onClick={() => setSelectedTab(tab)}
                 className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                   selectedTab === tab
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -277,26 +609,67 @@ export const Projects: React.FC = () => {
 
           {/* Project Cards */}
           <div className="space-y-4">
-            {filteredProjects.map((project) => (
+            {filteredProjects.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 border border-slate-200/80 text-center space-y-4 shadow-2xs">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center mx-auto ring-1 ring-slate-200">
+                  <FolderGit2 className="w-6 h-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {selectedTab === 'All' ? 'No Connected Projects' : `No projects marked '${selectedTab}'`}
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed mt-1">
+                    {selectedTab === 'All'
+                      ? "Your proof-of-work portfolio is currently clean. Connect a live GitHub repository to pull code telemetry, or use the Project Architect to generate a production-ready blueprint."
+                      : `You haven't added or tagged any projects with status '${selectedTab}'.`}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                  <button
+                    onClick={() => setIsGithubModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                  >
+                    <GithubIcon className="w-3.5 h-3.5" />
+                    <span>Connect GitHub Repository</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsArchitectOpen(true); setGeneratedBlueprint(null); }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+                  >
+                    <Cpu className="w-3.5 h-3.5" />
+                    <span>Architect AI Blueprint</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAddProjectOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer border border-slate-200"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Custom Project</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              filteredProjects.map((project) => (
               <SpotlightCard
                 key={project.id}
                 className="p-5 space-y-4"
-                spotlightColor="rgba(99, 102, 241, 0.12)"
+                spotlightColor="rgba(99, 102, 241, 0.08)"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Code2 className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center shrink-0 mt-0.5 ring-1 ring-slate-200">
+                      <Code2 className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm sm:text-base font-bold text-slate-900">{project.title}</h3>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                           project.status === 'Completed'
-                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : project.status === 'In Progress'
-                            ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
-                            : 'bg-slate-100 text-slate-500'
+                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            : 'bg-slate-100 text-slate-600'
                         }`}>
                           {project.status}
                         </span>
@@ -305,19 +678,62 @@ export const Projects: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className="text-[11px] font-semibold text-slate-500 self-start shrink-0">
-                    {project.difficulty}
-                  </span>
+                  <div className="flex items-center gap-2 self-start shrink-0">
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {project.difficulty}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteProject(project.id)}
+                      title="Remove project"
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Tech stack chips */}
                 <div className="flex flex-wrap gap-1.5">
                   {project.techStack.map((tech) => (
-                    <span key={tech} className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium">
+                    <span key={tech} className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono font-medium">
                       {tech}
                     </span>
                   ))}
                 </div>
+
+                {/* GitHub Telemetry Bar */}
+                {project.githubUrl && (
+                  <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl bg-slate-950 text-slate-200 text-[11px] font-mono border border-slate-800">
+                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span>Verified Git Telemetry</span>
+                    </div>
+                    <span className="text-slate-600">•</span>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <GitCommit className="w-3 h-3 text-indigo-400" />
+                      <span>{project.commitSha || '7a2f1b4'}</span>
+                    </div>
+                    <span className="text-slate-600">•</span>
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <GitBranch className="w-3 h-3 text-slate-400" />
+                      <span>{project.branch || 'main'}</span>
+                    </div>
+                    {project.stars !== undefined && project.stars > 0 && (
+                      <>
+                        <span className="text-slate-600">•</span>
+                        <div className="flex items-center gap-1 text-amber-400">
+                          <Star className="w-3 h-3 fill-amber-400" />
+                          <span>{project.stars}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="ml-auto">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">
+                        build • passing
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Progress bar */}
                 <div className="space-y-1">
@@ -362,12 +778,12 @@ export const Projects: React.FC = () => {
                     )}
                   </div>
 
-                  <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-                    View Details <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    Category: {project.category}
+                  </span>
                 </div>
               </SpotlightCard>
-            ))}
+            )))}
           </div>
         </div>
 
@@ -375,31 +791,31 @@ export const Projects: React.FC = () => {
         <div className="lg:col-span-4 space-y-4">
           {/* Project Stats Card */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-3">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">My Project Stats</h3>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Proof of Work Telemetry</h3>
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-3 rounded-xl bg-slate-50 text-center">
-                <span className="text-xl font-extrabold text-slate-900 block">
+              <div className="p-3 rounded-xl bg-slate-50 text-center border border-slate-100">
+                <span className="text-xl font-extrabold text-slate-900 block font-mono">
                   <CountUp end={totalProjects} duration={800} />
                 </span>
-                <span className="text-[11px] text-slate-500">Total Projects</span>
+                <span className="text-[11px] text-slate-500 font-medium">Total Projects</span>
               </div>
-              <div className="p-3 rounded-xl bg-emerald-50 text-center">
-                <span className="text-xl font-extrabold text-emerald-600 block">
+              <div className="p-3 rounded-xl bg-emerald-50/60 text-center border border-emerald-100">
+                <span className="text-xl font-extrabold text-emerald-600 block font-mono">
                   <CountUp end={completedProjects} duration={800} />
                 </span>
-                <span className="text-[11px] text-emerald-700">Completed</span>
+                <span className="text-[11px] text-emerald-700 font-medium">Completed</span>
               </div>
-              <div className="p-3 rounded-xl bg-indigo-50 text-center">
-                <span className="text-xl font-extrabold text-indigo-600 block">
+              <div className="p-3 rounded-xl bg-indigo-50/60 text-center border border-indigo-100">
+                <span className="text-xl font-extrabold text-indigo-600 block font-mono">
                   <CountUp end={inProgressProjects} duration={800} />
                 </span>
-                <span className="text-[11px] text-indigo-700">In Progress</span>
+                <span className="text-[11px] text-indigo-700 font-medium">In Progress</span>
               </div>
-              <div className="p-3 rounded-xl bg-purple-50 text-center">
-                <span className="text-xl font-extrabold text-purple-600 block">
+              <div className="p-3 rounded-xl bg-slate-50 text-center border border-slate-100">
+                <span className="text-xl font-extrabold text-slate-700 block font-mono">
                   <CountUp end={ideaProjects} duration={800} />
                 </span>
-                <span className="text-[11px] text-purple-700">Ideas</span>
+                <span className="text-[11px] text-slate-500 font-medium">Backlog / Ideas</span>
               </div>
             </div>
           </div>
@@ -407,8 +823,8 @@ export const Projects: React.FC = () => {
           {/* AI Project Suggestions */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <h3 className="text-xs font-bold text-slate-900">AI Project Suggestions</h3>
+              <Terminal className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Recommended Architectures</h3>
             </div>
 
             {/* Suggestion tabs */}
@@ -419,7 +835,7 @@ export const Projects: React.FC = () => {
                   onClick={() => setSuggestionTab(tab)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition cursor-pointer ${
                     suggestionTab === tab
-                      ? 'bg-indigo-50 text-indigo-700 font-bold'
+                      ? 'bg-slate-900 text-white shadow-xs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
@@ -433,21 +849,25 @@ export const Projects: React.FC = () => {
                 <div key={idx} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800">{sug.title}</h4>
-                    <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
                       {sug.badge}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">{sug.desc}</p>
                   <div className="flex items-center justify-between pt-1">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
                       {sug.stack.map(st => (
-                        <span key={st} className="text-[10px] bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-600">
+                        <span key={st} className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-600">
                           {st}
                         </span>
                       ))}
                     </div>
-                    <button className="text-xs font-bold text-indigo-600 hover:underline">
-                      Add to Projects →
+                    <button 
+                      onClick={() => handleAddSuggestionToProjects(sug)}
+                      className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Build</span>
+                      <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
                 </div>

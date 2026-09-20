@@ -45,6 +45,7 @@ export const App: React.FC = () => {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/learning" element={<Navigate to="/roadmap" replace />} />
                 <Route path="/assistant" element={<Assistant />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/creators" element={<Creators />} />
