@@ -10,7 +10,7 @@ name: Deploy backend to AWS
 
 on:
   push:
-    branches: [main]
+    branches: [majid-1]
     paths:
       - "backend/**"
       - ".github/workflows/deploy-backend.yml"
