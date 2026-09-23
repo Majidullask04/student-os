@@ -20,15 +20,21 @@ import {
   Code2, 
   GraduationCap, 
   Users2,
-  ChevronRight
+  ChevronRight,
+  Copy,
+  Check
 } from 'lucide-react';
 import { YoutubeIcon } from '../components/ui/BrandIcons';
 import { ToolCallCard } from '../components/ui/ToolCallCard';
 import { Skeleton } from '../components/ui/Skeleton';
 import { api, getDynamicFallbackProfile } from '../services/api';
 import { ChatMessage, Profile, Roadmap } from '../types';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useToast } from '../components/ui/Toast';
 
 export const Assistant: React.FC = () => {
+  const { success, info } = useToast();
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const initialPrompt = searchParams.get('prompt');
 
@@ -117,46 +123,31 @@ export const Assistant: React.FC = () => {
   const userQueries = messages.filter(m => m.sender === 'user').map(m => m.text);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs shrink-0 ring-1 ring-slate-800">
-            <Bot className="w-5 h-5 text-indigo-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                AI Learning Agent
-              </h1>
-              <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/70">
-                v2.4 Kernel
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Autonomous reasoning, roadmap synthesis, and live RAG retrieval.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Engineering Telemetry Badge */}
-          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-[11px] font-mono text-slate-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Gemini 2.5 Flash</span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-500">28ms</span>
-          </div>
-
+      <PageHeader
+        title="AI Learning Agent"
+        subtitle="Autonomous reasoning, roadmap synthesis, and live RAG retrieval."
+        badge="Gemini 2.5 Flash • 28ms latency"
+        badgeColor="indigo"
+        icon={Bot}
+        breadcrumbs={[
+          { label: 'Workspace' },
+          { label: 'AI Assistant' },
+        ]}
+        actions={
           <button
-            onClick={handleNewChat}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:translate-y-[1px] text-white text-xs font-semibold shadow-xs transition cursor-pointer"
+            onClick={() => {
+              handleNewChat();
+              success('New session created', 'Chat memory cleared for new exploration.');
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-semibold shadow-xs transition btn-tactile cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>New Chat</span>
+            <span>New Session</span>
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Three-Column Main Container */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

@@ -13,9 +13,8 @@ import {
   BarChart3, 
   Bookmark, 
   Settings, 
-  Terminal,
   Activity,
-  Cpu
+  Sparkles
 } from 'lucide-react';
 
 import { StudentOsLogo } from '../ui/StudentOsLogo';
@@ -27,7 +26,7 @@ interface SidebarProps {
 
 interface NavGroup {
   category: string;
-  items: { label: string; path: string; icon: React.ComponentType<{ className?: string }> }[];
+  items: { label: string; path: string; icon: React.ComponentType<{ className?: string }>; badge?: string }[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
@@ -36,8 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       category: 'WORKSPACE',
       items: [
         { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-        { label: 'My Roadmap', path: '/roadmap', icon: Map },
-        { label: 'AI Assistant', path: '/assistant', icon: Bot },
+        { label: 'My Roadmap', path: '/roadmap', icon: Map, badge: 'Live' },
+        { label: 'AI Assistant', path: '/assistant', icon: Bot, badge: 'AI' },
       ]
     },
     {
@@ -52,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       category: 'PROOF OF WORK',
       items: [
         { label: 'Projects & Blueprints', path: '/projects', icon: FolderGit2 },
-        { label: 'Career & 5D Job Fit', path: '/career', icon: Briefcase },
+        { label: 'Career & 5D Job Fit', path: '/career', icon: Briefcase, badge: 'Hot' },
         { label: 'Progress Metrics', path: '/progress', icon: BarChart3 },
       ]
     },
@@ -83,15 +82,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         }`}
       >
         {/* Brand Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-slate-800/60">
+        <div className="px-5 pt-5 pb-4 border-b border-slate-800/60 flex items-center justify-between">
           <StudentOsLogo size={32} showText={true} theme="dark" />
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-mono font-medium text-indigo-400">
+            <Sparkles className="w-3 h-3 text-indigo-400" />
+            <span>v2.4</span>
+          </div>
         </div>
 
         {/* Navigation List with Semantic Groups */}
         <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto dark-sidebar">
           {navGroups.map((group) => (
             <div key={group.category} className="space-y-1">
-              <span className="px-3 text-[10px] font-bold text-slate-400 tracking-wider uppercase block">
+              <span className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase block">
                 {group.category}
               </span>
               {group.items.map((item) => {
@@ -103,17 +106,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     onClick={onClose}
                     end={item.path === '/'}
                     className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition duration-150 group ${
+                      `relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group ${
                         isActive
-                          ? 'bg-indigo-600/90 text-white font-semibold shadow-xs border border-indigo-500/30'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold shadow-md shadow-indigo-600/20 border border-indigo-500/40 translate-x-0.5'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 hover:translate-x-1'
                       }`
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        <Icon className={`w-4 h-4 transition duration-150 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                        <span className="truncate">{item.label}</span>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon className={`w-4 h-4 transition duration-200 shrink-0 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`} />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider font-mono ${
+                            isActive 
+                              ? 'bg-white/20 text-white' 
+                              : item.badge === 'AI' 
+                                ? 'bg-indigo-950 text-indigo-400 border border-indigo-800' 
+                                : item.badge === 'Hot'
+                                ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                                : 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          }`}>
+                            {item.badge}
+                          </span>
+                        )}
                       </>
                     )}
                   </NavLink>
@@ -123,27 +141,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           ))}
         </nav>
 
-        {/* Live System Telemetry Card (Engineer Grade) */}
-        <div className="p-3 m-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+        {/* Live System Telemetry Card */}
+        <div className="p-3 m-3 rounded-2xl bg-gradient-to-b from-slate-900/95 to-slate-950 border border-slate-800/90 shadow-inner space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="text-[11px] font-mono font-semibold text-slate-300">Engine v2.4</span>
+              <span className="text-[11px] font-mono font-semibold text-slate-200">Engine Online</span>
             </div>
             <span className="text-[10px] font-mono text-emerald-400 font-medium">● 28ms</span>
           </div>
 
-          <div className="text-[11px] font-mono text-slate-400 space-y-0.5 border-t border-slate-800/80 pt-1.5">
+          <div className="text-[11px] font-mono text-slate-400 space-y-1 border-t border-slate-800/80 pt-1.5">
             <div className="flex justify-between">
               <span>Stack:</span>
               <span className="text-slate-300">FastAPI + pgvector</span>
             </div>
             <div className="flex justify-between">
-              <span>Branch:</span>
-              <span className="text-indigo-400">main • clean</span>
+              <span>RAG Engine:</span>
+              <span className="text-indigo-400">Gemini 2.5 Flash</span>
             </div>
           </div>
         </div>

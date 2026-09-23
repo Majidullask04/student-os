@@ -23,11 +23,14 @@ import {
 import { GithubIcon } from '../components/ui/BrandIcons';
 import { api } from '../services/api';
 import { Project, Profile } from '../types';
-import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
 import { CountUp } from '../components/ui/CountUp';
+import { PageHeader } from '../components/ui/PageHeader';
+import { AnimatedProgress } from '../components/ui/AnimatedProgress';
+import { useToast } from '../components/ui/Toast';
 
 export const Projects: React.FC = () => {
+  const { success, info } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedTab, setSelectedTab] = useState<'All' | 'In Progress' | 'Completed' | 'Idea'>('All');
@@ -213,50 +216,44 @@ export const Projects: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs ring-1 ring-slate-800">
-              <FolderGit2 className="w-4 h-4 text-indigo-400" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Proof of Work & Projects
-            </h1>
-            <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
-              git • telemetry
-            </span>
+      <PageHeader
+        title="Proof of Work & Projects"
+        subtitle="Production-grade implementations demonstrating verified mastery, real commits, and code artifacts."
+        badge={`${projects.length} Active Blueprints`}
+        badgeColor="purple"
+        icon={FolderGit2}
+        breadcrumbs={[
+          { label: 'Proof of Work' },
+          { label: 'Projects & Blueprints' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setIsGithubModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-semibold shadow-xs transition btn-tactile cursor-pointer"
+            >
+              <GithubIcon className="w-3.5 h-3.5 text-white" />
+              <span>Connect GitHub</span>
+            </button>
+            <button
+              onClick={() => { setIsArchitectOpen(true); setGeneratedBlueprint(null); }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 text-xs font-semibold shadow-xs transition btn-tactile cursor-pointer"
+            >
+              <Cpu className="w-3.5 h-3.5 text-indigo-600" />
+              <span>AI Architect</span>
+            </button>
+            <button 
+              onClick={() => setIsAddProjectOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition btn-tactile cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Project</span>
+            </button>
           </div>
-          <p className="text-xs text-slate-500 font-medium">
-            Production-grade implementations demonstrating verified mastery, real commits, and code artifacts.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={() => setIsGithubModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 text-xs font-semibold shadow-xs transition active:translate-y-[1px] cursor-pointer"
-          >
-            <GithubIcon className="w-3.5 h-3.5 text-white" />
-            <span>Connect GitHub</span>
-          </button>
-          <button
-            onClick={() => { setIsArchitectOpen(true); setGeneratedBlueprint(null); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300 text-xs font-semibold shadow-xs transition active:translate-y-[1px] cursor-pointer"
-          >
-            <Cpu className="w-3.5 h-3.5 text-indigo-600" />
-            <span>AI Project Architect</span>
-          </button>
-          <button 
-            onClick={() => setIsAddProjectOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition active:translate-y-[1px] cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Custom Project</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* GitHub Repository Connection Modal */}
       {isGithubModalOpen && (

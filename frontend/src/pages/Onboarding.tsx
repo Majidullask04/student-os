@@ -809,7 +809,7 @@ export const Onboarding: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(prev => prev - 1)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer active:translate-y-[1px]"
+              className="btn-tactile flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back</span>
@@ -820,7 +820,7 @@ export const Onboarding: React.FC = () => {
             <button
               type="button"
               onClick={() => setStep(prev => prev + 1)}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer active:translate-y-[1px]"
+              className="btn-tactile flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold shadow-md shadow-indigo-900/20 transition cursor-pointer"
             >
               <span>Next</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -829,9 +829,9 @@ export const Onboarding: React.FC = () => {
             <button
               type="button"
               onClick={handleFinish}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition cursor-pointer active:translate-y-[1px]"
+              className="btn-tactile flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white text-xs font-bold shadow-lg shadow-indigo-900/30 transition cursor-pointer animate-pulse-subtle"
             >
-              <Terminal className="w-4 h-4" />
+              <Terminal className="w-4 h-4 text-emerald-300" />
               <span>Initialize Student OS Workspace</span>
             </button>
           )}

@@ -216,7 +216,7 @@ export const Login: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOAuth('google')}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
+              className="btn-tactile flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-xs font-semibold transition cursor-pointer"
             >
               <GoogleIcon className="w-4 h-4" />
               <span>Google</span>
@@ -224,7 +224,7 @@ export const Login: React.FC = () => {
             <button
               type="button"
               onClick={() => handleOAuth('github')}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
+              className="btn-tactile flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 text-xs font-semibold transition cursor-pointer"
             >
               <GithubIcon className="w-4 h-4" />
               <span>GitHub</span>
@@ -233,7 +233,7 @@ export const Login: React.FC = () => {
 
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200" /></div>
-            <span className="relative bg-white px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="relative bg-white px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
               Or continue with email
             </span>
           </div>
@@ -241,7 +241,7 @@ export const Login: React.FC = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
-              <div className="space-y-1">
+              <div className="space-y-1 animate-scale-in">
                 <label className="text-xs font-bold text-slate-700">Full Name</label>
                 <input
                   type="text"
@@ -249,7 +249,7 @@ export const Login: React.FC = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Alex Johnson"
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-400"
+                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                 />
               </div>
             )}
@@ -257,14 +257,14 @@ export const Login: React.FC = () => {
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700">Email address</label>
               <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+                <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@domain.com"
-                  className="w-full text-xs pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-400"
+                  className="w-full text-xs pl-10 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                 />
               </div>
             </div>
@@ -279,14 +279,14 @@ export const Login: React.FC = () => {
                 )}
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+                <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full text-xs pl-9 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-400"
+                  className="w-full text-xs pl-10 pr-3 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                 />
               </div>
             </div>
@@ -294,7 +294,7 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
+              className="btn-tactile w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold shadow-md shadow-indigo-900/20 transition cursor-pointer disabled:opacity-50"
             >
               <span>{loading ? 'Authenticating...' : isSignUp ? 'Create Student Account' : 'Sign in to Student OS'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -306,9 +306,9 @@ export const Login: React.FC = () => {
             <button
               type="button"
               onClick={handleDemoAccess}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+              className="btn-tactile w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200/80 transition cursor-pointer"
             >
-              1-Click Guest Tour (Explore Demo Environment)
+              ⚡ 1-Click Guest Tour (Explore Live Demo Environment)
             </button>
           </div>
         </div>

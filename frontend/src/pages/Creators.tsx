@@ -23,8 +23,12 @@ import { Creator, Profile } from '../types';
 import { mockCreators } from '../mocks/data';
 import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useToast } from '../components/ui/Toast';
+import { Users2 } from 'lucide-react';
 
 export const Creators: React.FC = () => {
+  const { success, info } = useToast();
   const [creators, setCreators] = useState<Creator[]>(mockCreators);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -60,10 +64,14 @@ export const Creators: React.FC = () => {
   }, []);
 
   const handleToggleFollow = (creatorId: string) => {
+    const target = creators.find(c => c.id === creatorId);
     api.toggleFollowCreator(creatorId).then(res => {
       setCreators(prev => prev.map(c => c.id === creatorId ? { ...c, isFollowing: res.isFollowing } : c));
       if (res.isFollowing) {
         confetti({ particleCount: 30, spread: 60, origin: { y: 0.7 } });
+        success('Following Creator', `Subscribed to insights from ${target?.name || 'Creator'}.`);
+      } else {
+        info('Unfollowed Creator', `Removed ${target?.name || 'Creator'} from priority feed.`);
       }
     });
   };
@@ -84,42 +92,19 @@ export const Creators: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Top Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-50/80 via-indigo-50/70 to-blue-50/80 border border-indigo-100/80 p-6 md:p-8 shadow-xs">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="max-w-xl">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
-                <Rocket className="w-4 h-4" />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Creators
-              </h1>
-            </div>
-            <p className="text-sm sm:text-base font-semibold text-purple-700">
-              Learn from people you trust
-            </p>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Discover the best educators, builders, and creators. Get personalized recommendations based on your goals and roadmap.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 self-end md:self-center shrink-0">
-            <div className="px-4 py-3 rounded-xl bg-white/90 border border-slate-200/80 shadow-2xs flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100/60 text-indigo-600 flex items-center justify-center">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <div className="text-left">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ecosystem</span>
-                <p className="text-xs font-bold text-slate-800">
-                  {creators.length} Industry Leaders Verified
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Top Hero Header */}
+      <PageHeader
+        title="Creators Matrix"
+        subtitle="Learn from high-signal educators, senior architects, and builders. Curated recommendations mapped to your skills."
+        badge={`${creators.length} Verified Creators`}
+        badgeColor="purple"
+        icon={Users2}
+        breadcrumbs={[
+          { label: 'Knowledge' },
+          { label: 'Creators Matrix' },
+        ]}
+      />
 
       {/* 2. Category Pills & Search Controls */}
       <div className="space-y-3">

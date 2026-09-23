@@ -32,9 +32,11 @@ import { ShinyText } from '../components/ui/ShinyText';
 import { CountUp } from '../components/ui/CountUp';
 import { GridPattern } from '../components/ui/GridPattern';
 import { Magnet } from '../components/ui/Magnet';
+import { useToast } from '../components/ui/Toast';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { success, info } = useToast();
   const [profile, setProfile] = useState<Profile>(getDynamicFallbackProfile());
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
   const [focusTasks, setFocusTasks] = useState<any[]>([]);
@@ -66,6 +68,9 @@ export const Dashboard: React.FC = () => {
     const nextState = !t?.completed;
     if (nextState) {
       confetti({ particleCount: 35, spread: 60, origin: { y: 0.8 } });
+      success('Focus Task Completed!', `"${t?.title || 'Task'}" marked as completed.`);
+    } else {
+      info('Task Status Updated', `"${t?.title || 'Task'}" moved back to pending.`);
     }
     api.toggleFocusItem(id).then(items => {
       setFocusTasks([...items]);
@@ -81,6 +86,7 @@ export const Dashboard: React.FC = () => {
     const nextState = !currentTask.completed;
     if (nextState) {
       confetti({ particleCount: 40, spread: 70, origin: { y: 0.7 } });
+      success('Milestone Task Done!', `Completed "${currentTask.title}".`);
     }
     api.markTaskProgress({ taskId, completed: nextState }).then(res => {
       setRoadmap(res.roadmap);

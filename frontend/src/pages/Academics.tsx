@@ -17,8 +17,12 @@ import { api } from '../services/api';
 import { AcademicCourse, AcademicExam } from '../types';
 import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { AnimatedProgress } from '../components/ui/AnimatedProgress';
+import { useToast } from '../components/ui/Toast';
 
 export const Academics: React.FC = () => {
+  const { success, info } = useToast();
   const [courses, setCourses] = useState<AcademicCourse[]>([]);
   const [exams, setExams] = useState<AcademicExam[]>([]);
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
@@ -77,12 +81,14 @@ export const Academics: React.FC = () => {
       attendance: '95%',
       semester: 'Current Semester'
     });
+    success('University Course Logged', `${courseForm.code} has been added to your curriculum tracker.`);
     confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } });
   };
 
   const handleDeleteCourse = async (id: string) => {
     await api.deleteAcademicCourse(id);
     await loadAcademics();
+    info('Course Removed', 'Course has been unlinked from your semester.');
   };
 
   const handleCreateExam = async (e: React.FormEvent) => {
@@ -106,12 +112,14 @@ export const Academics: React.FC = () => {
       time: '10:00 AM',
       room: 'Hall 101'
     });
+    success('Deadline Scheduled', `${examForm.title} added to your academic calendar.`);
     confetti({ particleCount: 35, spread: 50, origin: { y: 0.6 } });
   };
 
   const handleDeleteExam = async (id: string) => {
     await api.deleteAcademicExam(id);
     await loadAcademics();
+    info('Assessment Removed', 'Exam deadline has been cleared.');
   };
 
   const totalCredits = courses.reduce((sum, c) => sum + (c.credits || 0), 0);
@@ -120,47 +128,43 @@ export const Academics: React.FC = () => {
     : 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs ring-1 ring-slate-800">
-              <GraduationCap className="w-4 h-4 text-indigo-400" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              University Curriculum & Academics
-            </h1>
-            <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
-              student • verified
-            </span>
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header */}
+      <PageHeader
+        badge="University Curriculum"
+        title="University Academics & Milestones"
+        description="Manage your institutional coursework, credits, attendance records, and upcoming exam deadlines in sync with your AI roadmap."
+        icon={GraduationCap}
+        gradient="from-indigo-600 to-violet-600"
+        metrics={[
+          { label: 'Active Courses', value: courses.length, color: 'text-indigo-400' },
+          { label: 'Total Credits', value: `${totalCredits} cr`, color: 'text-violet-400' },
+          { label: 'Avg Progress', value: `${avgProgress}%`, color: 'text-emerald-400' },
+          { label: 'Milestones', value: exams.length, color: 'text-amber-400' },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsAddExamOpen(true)}
+              className="btn-tactile flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold border border-white/10 backdrop-blur-xs transition cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              <span>Add Exam / Deadline</span>
+            </button>
+            <button
+              onClick={() => setIsAddCourseOpen(true)}
+              className="btn-tactile flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold shadow-md shadow-indigo-900/30 transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Course</span>
+            </button>
           </div>
-          <p className="text-xs text-slate-500 font-medium">
-            Manage your real university coursework, credits, syllabus milestones, and exam schedules.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsAddExamOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition cursor-pointer"
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Add Exam / Deadline</span>
-          </button>
-          <button
-            onClick={() => setIsAddCourseOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Course</span>
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* GPA & Semester Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-1">
+        <div className="card-hover bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-1">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Enrolled Courses</span>
           <h3 className="text-xl font-bold text-slate-900 font-mono">{courses.length} Active</h3>
           <p className="text-xs text-slate-500 font-medium">
@@ -168,15 +172,16 @@ export const Academics: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-1">
+        <div className="card-hover bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-1.5">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Curriculum Completion</span>
-          <h3 className="text-xl font-bold text-indigo-600 font-mono">{avgProgress}%</h3>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mt-1.5">
-            <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${avgProgress}%` }} />
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-indigo-600 font-mono">{avgProgress}%</h3>
+            <span className="text-[11px] text-slate-400 font-medium">overall</span>
           </div>
+          <AnimatedProgress value={avgProgress} color="indigo" height="h-2" showLabel={false} />
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-1">
+        <div className="card-hover bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-1">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">Upcoming Milestones</span>
           <h3 className="text-xl font-bold text-emerald-600 font-mono">{exams.length}</h3>
           <p className="text-xs text-slate-500 font-medium">
@@ -196,7 +201,7 @@ export const Academics: React.FC = () => {
             {courses.length > 0 && (
               <button 
                 onClick={() => setIsAddCourseOpen(true)}
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                className="btn-tactile text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" /> Add Another
               </button>
@@ -225,7 +230,7 @@ export const Academics: React.FC = () => {
               {courses.map((course) => (
                 <div 
                   key={course.id} 
-                  className="p-4 rounded-xl border border-slate-200/80 hover:border-indigo-300 transition space-y-2.5 bg-slate-50/40"
+                  className="card-hover p-4 rounded-xl border border-slate-200/80 hover:border-indigo-300 transition space-y-2.5 bg-slate-50/50"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -242,7 +247,6 @@ export const Academics: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-slate-700 font-mono">{course.progress}%</span>
                       <button
                         onClick={() => handleDeleteCourse(course.id)}
                         title="Remove Course"
@@ -253,12 +257,7 @@ export const Academics: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                      className="bg-indigo-600 h-1.5 rounded-full transition-all" 
-                      style={{ width: `${course.progress}%` }} 
-                    />
-                  </div>
+                  <AnimatedProgress value={course.progress || 0} color="indigo" height="h-1.5" showLabel={true} />
                 </div>
               ))}
             </div>

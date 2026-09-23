@@ -26,8 +26,11 @@ import {
 import { api } from '../services/api';
 import { Resource, Profile } from '../types';
 import confetti from 'canvas-confetti';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useToast } from '../components/ui/Toast';
 
 export const Resources: React.FC = () => {
+  const { success, info } = useToast();
   const [resources, setResources] = useState<Resource[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -54,10 +57,14 @@ export const Resources: React.FC = () => {
   }, [selectedCategory]);
 
   const handleToggleSave = (id: string) => {
+    const res = resources.find(r => r.id === id);
     api.toggleSaveResource(id).then(newState => {
       setResources(prev => prev.map(r => r.id === id ? { ...r, saved: newState } : r));
       if (newState) {
         confetti({ particleCount: 25, spread: 45, origin: { y: 0.8 } });
+        success('Resource Saved!', `"${res?.title || 'Resource'}" added to your bookmarks.`);
+      } else {
+        info('Resource Removed', `Removed from saved bookmarks.`);
       }
     });
   };
@@ -81,35 +88,19 @@ export const Resources: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 1. Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-purple-50/80 border border-indigo-100/80 p-6 md:p-8 shadow-xs">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="max-w-xl">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Learning Resources
-            </h1>
-            <p className="text-sm sm:text-base font-semibold text-indigo-700 mt-1">
-              Curated content. Personalized for your journey.
-            </p>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              High-quality resources from the best creators, courses, and communities — filtered for you.
-            </p>
-          </div>
-
-          <div className="px-4 py-3 rounded-xl bg-white/90 border border-slate-200/80 shadow-2xs flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100/60 text-indigo-600 flex items-center justify-center">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Verified Index</span>
-              <p className="text-xs font-bold text-slate-800">
-                {resources.length} Engineering Tracks Indexed
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. Hero Header */}
+      <PageHeader
+        title="Learning Resources"
+        subtitle="High-signal courses, documentation, and videos from leading creators and engineers — personalized for your goals."
+        badge={`${resources.length} Verified Tracks`}
+        badgeColor="blue"
+        icon={BookOpen}
+        breadcrumbs={[
+          { label: 'Knowledge' },
+          { label: 'Learning Resources' },
+        ]}
+      />
 
       {/* 2. Category Pill Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">

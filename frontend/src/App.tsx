@@ -28,11 +28,14 @@ const queryClient = new QueryClient({
   },
 });
 
+import { ToastProvider } from './components/ui/Toast';
+
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
           <Routes>
             {/* Public Authentication Routes */}
             <Route path="/login" element={<Login />} />
@@ -63,6 +66,7 @@ export const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+        </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

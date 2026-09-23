@@ -26,6 +26,8 @@ import {
 } from 'recharts';
 import { api } from '../services/api';
 import { ProgressMetric, Skill, Profile, Roadmap, ActivityLogEntry } from '../types';
+import { PageHeader } from '../components/ui/PageHeader';
+import { AnimatedProgress } from '../components/ui/AnimatedProgress';
 
 export const Progress: React.FC = () => {
   const [metrics, setMetrics] = useState<ProgressMetric>({
@@ -131,43 +133,36 @@ export const Progress: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in">
       {/* 1. Page Header & Range Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/80">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs ring-1 ring-slate-800">
-              <Activity className="w-4 h-4 text-emerald-400" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Learning Telemetry & Progress
-            </h1>
-            <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
-              live • metrics
-            </span>
+      <PageHeader
+        title="Learning Telemetry & Progress"
+        subtitle="Real study telemetry, verified skill mastery, and continuous milestone tracking."
+        badge={`${metrics.learningHours} hrs logged • ${metrics.currentStreak} day streak`}
+        badgeColor="emerald"
+        icon={BarChart3}
+        breadcrumbs={[
+          { label: 'Proof of Work' },
+          { label: 'Progress Metrics' },
+        ]}
+        actions={
+          <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-2xs">
+            {(['This Week', 'This Month', 'All Time'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setTimeRange(r)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer btn-tactile ${
+                  timeRange === r
+                    ? 'bg-slate-900 text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
           </div>
-          <p className="text-xs text-slate-500 font-medium">
-            Real study telemetry, verified skill mastery, and continuous milestone tracking.
-          </p>
-        </div>
-
-        {/* Time Range Pills */}
-        <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-2xs">
-          {(['This Week', 'This Month', 'All Time'] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setTimeRange(r)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                timeRange === r
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Stat Cards with Positive Deltas */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">

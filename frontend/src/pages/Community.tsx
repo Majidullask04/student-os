@@ -19,8 +19,11 @@ import {
 import { api } from '../services/api';
 import { CommunityPost } from '../types';
 import confetti from 'canvas-confetti';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useToast } from '../components/ui/Toast';
 
 export const Community: React.FC = () => {
+  const { success, info } = useToast();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [activeTab, setActiveTab] = useState<'Feed' | 'Study Groups' | 'Events' | 'Find Buddies' | 'Creator Communities'>('Feed');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -41,6 +44,7 @@ export const Community: React.FC = () => {
     setNewTitle('');
     setNewBody('');
     confetti({ particleCount: 35, spread: 60, origin: { y: 0.7 } });
+    success('Discussion Published!', 'Your post is now live on the community stream.');
   };
 
   const handleToggleLike = async (postId: string) => {
@@ -58,8 +62,14 @@ export const Community: React.FC = () => {
   };
 
   const handleToggleJoin = (groupId: string) => {
-    setJoinedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
-    confetti({ particleCount: 20, spread: 45, origin: { y: 0.8 } });
+    const nextJoined = !joinedGroups[groupId];
+    setJoinedGroups(prev => ({ ...prev, [groupId]: nextJoined }));
+    if (nextJoined) {
+      confetti({ particleCount: 20, spread: 45, origin: { y: 0.8 } });
+      success('Joined Study Group!', 'You are now part of this active cohort.');
+    } else {
+      info('Left Group', 'You left the study cohort.');
+    }
   };
 
   const categories = ['All', 'AI/ML', 'DevOps', 'Web Dev', 'Projects', 'DSA', 'Career & Jobs'];
@@ -70,40 +80,36 @@ export const Community: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-              <Users2 className="w-4 h-4" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Community
-            </h1>
+      <PageHeader
+        title="Student Community"
+        subtitle="Connect · Learn · Build Together • Study groups, peer code reviews, and creator cohorts."
+        badge={`${posts.length} Active Threads`}
+        badgeColor="indigo"
+        icon={Users2}
+        breadcrumbs={[
+          { label: 'Knowledge' },
+          { label: 'Community' },
+        ]}
+        actions={
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {(['Feed', 'Study Groups', 'Events', 'Find Buddies', 'Creator Communities'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer btn-tactile ${
+                  activeTab === tab
+                    ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Connect · Learn · Build Together • Study groups, peer reviews, and creator hangouts.
-          </p>
-        </div>
-
-        {/* Tab Selector */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1">
-          {(['Feed', 'Study Groups', 'Events', 'Find Buddies', 'Creator Communities'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                activeTab === tab
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Category Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">

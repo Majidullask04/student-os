@@ -31,8 +31,11 @@ import { CountUp } from '../components/ui/CountUp';
 import { GridPattern } from '../components/ui/GridPattern';
 import { Magnet } from '../components/ui/Magnet';
 import { DecryptedText } from '../components/ui/DecryptedText';
+import { PageHeader } from '../components/ui/PageHeader';
+import { useToast } from '../components/ui/Toast';
 
 export const Career: React.FC = () => {
+  const { success, info } = useToast();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [profile, setProfile] = useState<Profile>(getDynamicFallbackProfile());
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
@@ -171,47 +174,44 @@ export const Career: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in">
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Career Hub
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Prepare for your dream career • Real jobs matched to your verified skills and roadmap progress.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setIsPasteJdOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer shadow-xs"
-          >
-            <FileText className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Paste Job Description</span>
-          </button>
-
-          {(['Jobs', 'Internships', 'Resume', 'Interview Prep'] as const).map((tab) => (
+      <PageHeader
+        title="Career & 5D Job Fit"
+        subtitle="Match with verified job opportunities, calculate gap matrices, and synthesize tailored resumes & cover letters."
+        badge={`${jobs.length} Matching Opportunities`}
+        badgeColor="emerald"
+        icon={Briefcase}
+        breadcrumbs={[
+          { label: 'Proof of Work' },
+          { label: 'Career & 5D Fit' },
+        ]}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                activeTab === tab
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
+              onClick={() => setIsPasteJdOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer shadow-2xs btn-tactile"
             >
-              {tab}
+              <FileText className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Paste JD</span>
             </button>
-          ))}
-        </div>
-      </div>
+
+            {(['Jobs', 'Internships', 'Resume', 'Interview Prep'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer btn-tactile ${
+                  activeTab === tab
+                    ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/* Paste-JD Modal (Blueprint §47) */}
       {isPasteJdOpen && (

@@ -20,7 +20,9 @@ import {
   Lock,
   ArrowRight,
   Bot,
-  X
+  X,
+  Map,
+  Sparkles
 } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
 import { api } from '../services/api';
@@ -30,8 +32,12 @@ import confetti from 'canvas-confetti';
 import { SpotlightCard } from '../components/ui/SpotlightCard';
 import { ShinyText } from '../components/ui/ShinyText';
 import { CountUp } from '../components/ui/CountUp';
+import { PageHeader } from '../components/ui/PageHeader';
+import { AnimatedProgress } from '../components/ui/AnimatedProgress';
+import { useToast } from '../components/ui/Toast';
 
 export const Roadmap: React.FC = () => {
+  const { success, info } = useToast();
   const [roadmap, setRoadmap] = useState<RoadmapType>(mockRoadmap);
   const [selectedModuleId, setSelectedModuleId] = useState<string>('mod-2');
   const [activeTab, setActiveTab] = useState<'tasks' | 'projects' | 'resources' | 'notes'>('tasks');
@@ -110,32 +116,28 @@ export const Roadmap: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in">
       {/* 1. Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-1.5 h-10 bg-indigo-600 rounded-full shrink-0 mt-1" />
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              My Roadmap
-            </h1>
-            <p className="text-sm text-slate-500 font-medium">
-              Your personalized path to become an AI Engineer
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Active Sprint • Stage 2 of 7</span>
-          </div>
-          <button className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-2xs transition">
+      <PageHeader
+        title="My Roadmap"
+        subtitle="Your personalized autonomous path to master skills and become an industry-ready AI Engineer."
+        badge="Active Sprint • Stage 2 of 7"
+        badgeColor="indigo"
+        icon={Map}
+        breadcrumbs={[
+          { label: 'Workspace' },
+          { label: 'My Roadmap' },
+        ]}
+        actions={
+          <button 
+            onClick={() => info('Customizing Sprint', 'Adapting roadmap parameters based on recent progress.')}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-2xs btn-tactile"
+          >
             <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
-            Customize Roadmap
+            Customize Sprint
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Top Stepper (7 Stages) */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs overflow-x-auto">
