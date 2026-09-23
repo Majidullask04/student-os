@@ -17,9 +17,15 @@ venv/
 # IDE
 .vscode/
 .idea/
+.gemini/
 
 # OS
 .DS_Store
+
+# Tests & Cache
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Logs
 *.log
