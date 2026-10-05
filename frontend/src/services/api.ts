@@ -21,6 +21,7 @@ import {
   mockInitialMessages, 
   mockCommunityPosts
 } from '../mocks/data';
+import { ALL_ROADMAPS, TechRoadmap } from '../data/roadmapsData';
 
 import { supabase } from '../lib/supabase';
 
@@ -241,6 +242,85 @@ function normalizeRoadmap(raw: any): Roadmap {
   };
 }
 
+export function convertTechRoadmapToLegacyRoadmap(techRoadmap: TechRoadmap, nodeStatuses: Record<string, string> = {}): Roadmap {
+  const stages = techRoadmap.stages.map((st, idx) => {
+    const stageNodes = st.nodes;
+    const completedCount = stageNodes.filter(n => (nodeStatuses[n.id] || n.status) === 'completed').length;
+    let status: 'Completed' | 'In Progress' | 'Next' | 'Upcoming' = 'Upcoming';
+    if (completedCount === stageNodes.length && stageNodes.length > 0) status = 'Completed';
+    else if (completedCount > 0 || idx === 0) status = 'In Progress';
+    else if (idx === 1) status = 'Next';
+
+    return {
+      id: st.id,
+      stageNumber: st.stageNumber,
+      title: st.title,
+      status,
+      moduleCount: stageNodes.length
+    };
+  });
+
+  const modules = techRoadmap.stages.map((st, idx) => {
+    const tasks = st.nodes.map(n => {
+      const isCompleted = (nodeStatuses[n.id] || n.status) === 'completed';
+      const isInProgress = (nodeStatuses[n.id] || n.status) === 'in_progress';
+      return {
+        id: n.id,
+        title: n.title,
+        description: n.tagline,
+        type: (n.difficulty === 'Senior Masterclass' ? 'Project' : (n.difficulty === 'Advanced' ? 'Security' : 'Theory')) as any,
+        level: (n.difficulty === 'Foundational' ? 'Basics' : 'Core') as any,
+        estimatedHours: n.estimatedHours,
+        completed: isCompleted,
+        inProgress: isInProgress,
+        subTasks: n.coreChecklist.map((c, cIdx) => ({
+          id: `${n.id}-${cIdx}`,
+          title: c,
+          completed: isCompleted
+        })),
+        resourcesCount: n.resources.length
+      };
+    });
+
+    const completedTasks = tasks.filter(t => t.completed).length;
+    const percentage = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+    const status = (percentage === 100 ? 'Completed' : (percentage > 0 || idx === 0 ? 'In Progress' : 'Upcoming')) as any;
+
+    return {
+      id: `mod-${st.stageNumber}`,
+      number: st.stageNumber,
+      title: st.title,
+      description: st.description,
+      status,
+      totalTasks: tasks.length,
+      completedTasks,
+      percentage,
+      tasks,
+      whyThisStep: st.description,
+      additionalResources: st.nodes.flatMap(n => n.resources.map(r => ({
+        id: r.id,
+        title: r.title,
+        platform: (r.type === 'Video' ? 'YouTube' : (r.type === 'GitHub' ? 'GitHub' : 'Documentation')) as any,
+        duration: r.duration,
+        url: r.url
+      }))).slice(0, 5)
+    };
+  });
+
+  const totalTasks = modules.reduce((acc, m) => acc + m.totalTasks, 0);
+  const totalCompleted = modules.reduce((acc, m) => acc + m.completedTasks, 0);
+  const overallPercentage = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+
+  return {
+    id: `roadmap-${techRoadmap.id}`,
+    goal: techRoadmap.role,
+    targetRole: techRoadmap.role,
+    overallPercentage,
+    stages,
+    modules
+  };
+}
+
 export const api = {
   // Authentication
   async signup(data: { email: string; password: string; name: string }) {
@@ -347,26 +427,22 @@ export const api = {
       { method: 'POST', body: JSON.stringify(data) },
       async () => {
         // Simulate thoughtful AI analysis delay
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        const currentRoadmap = getLocalItem<Roadmap>(getUserStorageKey(STORAGE_KEYS.ROADMAP), mockRoadmap);
-        const updatedRoadmap: Roadmap = {
-          ...currentRoadmap,
-          goal: data.goal,
-          targetRole: data.goal,
-          overallPercentage: 0,
-          modules: currentRoadmap.modules.map(mod => ({
-            ...mod,
-            completedTasks: 0,
-            percentage: 0,
-            status: mod.number === 1 ? 'In Progress' : 'Upcoming',
-            tasks: mod.tasks.map(t => ({ ...t, completed: false, subTasks: t.subTasks?.map(st => ({ ...st, completed: false })) }))
-          })),
-          stages: currentRoadmap.stages.map(st => ({
-            ...st,
-            status: st.stageNumber === 1 ? 'In Progress' : 'Upcoming'
-          }))
-        };
-        const normalized = normalizeRoadmap(updatedRoadmap);
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // Determine matching roadmap track
+        const goalLower = (data.goal || '').toLowerCase();
+        let trackId = 'frontend';
+        if (goalLower.includes('back')) trackId = 'backend';
+        else if (goalLower.includes('full')) trackId = 'fullstack';
+        else if (goalLower.includes('ai') || goalLower.includes('ml') || goalLower.includes('data sci')) trackId = 'ai-engineer';
+        else if (goalLower.includes('devops') || goalLower.includes('cloud')) trackId = 'devops';
+        else if (goalLower.includes('dsa') || goalLower.includes('algorithm') || goalLower.includes('computer sci')) trackId = 'dsa-cs';
+        else if (goalLower.includes('system') || goalLower.includes('architect')) trackId = 'system-design';
+
+        localStorage.setItem('student_os_active_roadmap_id', trackId);
+
+        const techRoadmap = ALL_ROADMAPS[trackId] || ALL_ROADMAPS['frontend'];
+        const normalized = convertTechRoadmapToLegacyRoadmap(techRoadmap, {});
         setLocalItem(getUserStorageKey(STORAGE_KEYS.ROADMAP), normalized);
         
         // Reset focus items to new roadmap tasks
@@ -380,7 +456,7 @@ export const api = {
 
         return {
           status: 'success',
-          summary: `Personalized ${data.goal} Roadmap generated with ${normalized.stages.length} milestones tailored to your ${data.skills.join(', ')} background.`,
+          summary: `Personalized ${techRoadmap.role} Roadmap generated with ${normalized.stages.length} milestones inspired by roadmap.sh, tailored to your background.`,
           roadmap: normalized,
         };
       }
@@ -393,11 +469,17 @@ export const api = {
       '/roadmap',
       { method: 'GET' },
       () => {
+        const activeTrackId = localStorage.getItem('student_os_active_roadmap_id') || 'frontend';
+        const nodeStatuses = getLocalItem<Record<string, string>>('student_os_node_statuses', {});
+        if (ALL_ROADMAPS[activeTrackId]) {
+          return convertTechRoadmapToLegacyRoadmap(ALL_ROADMAPS[activeTrackId], nodeStatuses);
+        }
+
         const stored = localStorage.getItem(getUserStorageKey(STORAGE_KEYS.ROADMAP));
         if (stored) {
           try { return JSON.parse(stored); } catch {}
         }
-        return mockRoadmap;
+        return convertTechRoadmapToLegacyRoadmap(ALL_ROADMAPS['frontend'], nodeStatuses);
       }
     );
     return normalizeRoadmap(raw);
@@ -1132,5 +1214,44 @@ export const api = {
     const updated = exams.filter(e => e.id !== examId);
     setLocalItem(getUserStorageKey(STORAGE_KEYS.ACADEMICS_EXAMS), updated);
     return true;
+  },
+
+  // Context.dev Real-Time Educational Content Agent
+  async searchLiveEducationalContent(query: string, numResults: number = 10): Promise<{
+    success: boolean;
+    query: string;
+    total: number;
+    results: Array<{ url: string; title: string; description: string; relevance: string }>;
+  }> {
+    try {
+      const res = await fetch(`${BASE_URL}/api/resources/live-search?q=${encodeURIComponent(query)}&num_results=${numResults}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[Context.dev] Live search API call failed:', e);
+    }
+    return { success: false, query, total: 0, results: [] };
+  },
+
+  async scrapeLiveEducationalResource(url: string): Promise<{
+    success: boolean;
+    url: string;
+    title: string;
+    markdown: string;
+  }> {
+    try {
+      const res = await fetch(`${BASE_URL}/api/resources/live-scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, main_content_only: true })
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[Context.dev] Live scrape API call failed:', e);
+    }
+    return { success: false, url, title: '', markdown: '' };
   }
 };

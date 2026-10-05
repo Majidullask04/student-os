@@ -4,6 +4,16 @@
   :root {
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    
+    /* Nature & Organic Engineering Palette */
+    --nature-forest: #064E3B;
+    --nature-emerald: #059669;
+    --nature-sage: #10B981;
+    --nature-moss: #34D399;
+    --nature-earth: #78350F;
+    --nature-amber: #D97706;
+    --nature-stone: #1E293B;
+    --nature-obsidian: #0A0F1D;
   }
 
   * {
@@ -25,7 +35,15 @@
   }
 }
 
-/* Engineering dot grid */
+/* Organic Nature Dot & Grid Canvas */
+.bg-nature-grid {
+  background-image: 
+    radial-gradient(rgba(16, 185, 129, 0.12) 1.5px, transparent 1.5px),
+    radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+  background-size: 32px 32px, 16px 16px;
+  background-position: 0 0, 8px 8px;
+}
+
 .bg-dot-grid {
   background-image: radial-gradient(rgba(148, 163, 184, 0.22) 1px, transparent 1px);
   background-size: 24px 24px;
@@ -41,12 +59,31 @@
   background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08) 0%, rgba(248, 250, 252, 0) 65%);
 }
 
+.bg-nature-glow {
+  background: radial-gradient(ellipse at 50% 10%, rgba(16, 185, 129, 0.09) 0%, rgba(5, 150, 105, 0.03) 45%, transparent 75%);
+}
+
+/* Nature connector flowing pulse */
+@keyframes natureFlow {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.path-nature-flow {
+  stroke-dasharray: 6 6;
+  animation: natureFlow 2s linear infinite;
+}
+
 /* Tactile physical feedback for buttons and cards */
 .btn-tactile {
   transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease;
 }
 .btn-tactile:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
 }
 .btn-tactile:active {
   transform: scale(0.97);
@@ -195,6 +232,177 @@
 .stagger-2 { animation-delay: 100ms; }
 .stagger-3 { animation-delay: 150ms; }
 .stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+.stagger-6 { animation-delay: 300ms; }
+
+/* ==========================================================================
+   Advanced Web Animation Skills (60fps, Liquid Glass, SVG & Micro-Interactions)
+   Reference: github.com/iart-ai/web-animation-skills
+   ========================================================================== */
+
+/* 1. Spring-physics tactile buttons & cards */
+.spring-hover {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms ease;
+  will-change: transform;
+}
+.spring-hover:hover {
+  transform: translateY(-3px) scale(1.01);
+}
+.spring-hover:active {
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 90ms;
+}
+
+/* 2. Liquid Glass & Specular Hover Sweep */
+.liquid-glass {
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 4px 20px -2px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.specular-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.specular-sweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 30%,
+    rgba(255, 255, 255, 0.16) 50%,
+    rgba(255, 255, 255, 0.03) 70%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+.specular-sweep:hover::before {
+  transform: skewX(-20deg) translateX(300%);
+}
+
+/* 3. Electric SVG Circuit Line Flow */
+@keyframes electricFlow {
+  0% {
+    stroke-dashoffset: 48;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.path-electric-flow {
+  stroke-dasharray: 8 6;
+  animation: electricFlow 1.4s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.75));
+}
+
+.path-electric-indigo {
+  stroke-dasharray: 8 6;
+  animation: electricFlow 1.4s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.75));
+}
+
+/* 4. Multi-Ring Pulse for Active Nodes */
+@keyframes ringExpand {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.pulse-ring-active {
+  position: relative;
+}
+.pulse-ring-active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid #6366F1;
+  animation: ringExpand 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* 5. Ambient Glowing Orbits & Energy Glows */
+@keyframes orbitGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08) translate3d(0, -6px, 0);
+  }
+}
+
+.glow-ambient-orbit {
+  animation: orbitGlow 6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* 6. Cascading Entrance Animation */
+@keyframes cascadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.animate-cascade {
+  animation: cascadeIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 7. Milestone Badge Hologram */
+@keyframes holoShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.badge-hologram {
+  background: linear-gradient(135deg, #F59E0B, #EC4899, #8B5CF6, #3B82F6, #10B981);
+  background-size: 300% 300%;
+  animation: holoShimmer 5s ease infinite;
+}
+
+/* 8. Accessible Animation: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .specular-sweep::before {
+    display: none !important;
+  }
+}
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {

@@ -1,814 +1,324 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  CheckCircle2, 
-  Circle, 
-  Clock, 
-  Database, 
-  Target,
-  ShieldCheck,
-  Cpu, 
-  FolderGit2, 
-  BookOpen, 
-  ExternalLink, 
+  Map, 
+  Sparkles, 
   SlidersHorizontal, 
-  ChevronRight, 
-  ChevronDown, 
-  PlayCircle,
-  Shield,
-  Layers,
-  FileText,
-  Lock,
+  BookOpen, 
+  Flame, 
+  Target, 
+  CheckCircle2, 
+  Layers, 
+  Compass,
   ArrowRight,
-  Bot,
-  X,
-  Map,
-  Sparkles
+  TrendingUp,
+  Award,
+  Zap,
+  Bot
 } from 'lucide-react';
-import { Skeleton } from '../components/ui/Skeleton';
-import { api } from '../services/api';
-import { Roadmap as RoadmapType, RoadmapModule, RoadmapTask } from '../types';
-import { mockRoadmap } from '../mocks/data';
-import confetti from 'canvas-confetti';
-import { SpotlightCard } from '../components/ui/SpotlightCard';
-import { ShinyText } from '../components/ui/ShinyText';
-import { CountUp } from '../components/ui/CountUp';
 import { PageHeader } from '../components/ui/PageHeader';
-import { AnimatedProgress } from '../components/ui/AnimatedProgress';
 import { useToast } from '../components/ui/Toast';
+import { api } from '../services/api';
+import confetti from 'canvas-confetti';
+
+import { ALL_ROADMAPS, TechRoadmap, RoadmapNodeData } from '../data/roadmapsData';
+import { RoadmapGoalSelector } from '../components/roadmap/RoadmapGoalSelector';
+import { RoadmapGraphCanvas } from '../components/roadmap/RoadmapGraphCanvas';
+import { RoadmapSyllabusView } from '../components/roadmap/RoadmapSyllabusView';
+import { RoadmapNodeDrawer } from '../components/roadmap/RoadmapNodeDrawer';
+import { RoadmapCustomizeModal } from '../components/roadmap/RoadmapCustomizeModal';
 
 export const Roadmap: React.FC = () => {
   const { success, info } = useToast();
-  const [roadmap, setRoadmap] = useState<RoadmapType>(mockRoadmap);
-  const [selectedModuleId, setSelectedModuleId] = useState<string>('mod-2');
-  const [activeTab, setActiveTab] = useState<'tasks' | 'projects' | 'resources' | 'notes'>('tasks');
-  const [expandedTaskId, setExpandedTaskId] = useState<string>('t2-3');
 
-  // Diagnostic Assessment State (Blueprint §8 & §9)
-  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
-  const [currentQuiz, setCurrentQuiz] = useState<any>(null);
-  const [loadingQuiz, setLoadingQuiz] = useState(false);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
-  const [quizResult, setQuizResult] = useState<any>(null);
-  const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  // 1. Current Active Roadmap Track
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string>(() => {
+    const saved = localStorage.getItem('student_os_active_roadmap_id');
+    if (saved && ALL_ROADMAPS[saved]) return saved;
+    return 'frontend';
+  });
 
+  // 2. View Mode (Visual Graph canvas vs Structured Syllabus)
+  const [viewMode, setViewMode] = useState<'graph' | 'syllabus'>(() => {
+    return (localStorage.getItem('student_os_roadmap_view_mode') as any) || 'graph';
+  });
+
+  // 3. Search Query
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // 4. Selected Node for Deep Dive Drawer
+  const [selectedNode, setSelectedNode] = useState<RoadmapNodeData | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+
+  // 5. Customize Pace Modal
+  const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState<boolean>(false);
+
+  // 6. Node Statuses Storage & Checklist tracking (persisted locally)
+  const [nodeStatuses, setNodeStatuses] = useState<Record<string, RoadmapNodeData['status']>>(() => {
+    const saved = localStorage.getItem('student_os_node_statuses');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {};
+  });
+
+  const [completedChecklist, setCompletedChecklist] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('student_os_node_checklist');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {};
+  });
+
+  // Load user profile on mount to sync initial goal if available
   useEffect(() => {
-    api.getRoadmap().then(setRoadmap);
+    api.getProfile().then(profile => {
+      if (profile?.goal) {
+        const goalLower = profile.goal.toLowerCase();
+        let matchedId = 'frontend';
+        if (goalLower.includes('front')) matchedId = 'frontend';
+        else if (goalLower.includes('back')) matchedId = 'backend';
+        else if (goalLower.includes('full')) matchedId = 'fullstack';
+        else if (goalLower.includes('ai') || goalLower.includes('ml')) matchedId = 'ai-engineer';
+        else if (goalLower.includes('devops') || goalLower.includes('cloud')) matchedId = 'devops';
+        else if (goalLower.includes('dsa') || goalLower.includes('algorithm')) matchedId = 'dsa-cs';
+        else if (goalLower.includes('system')) matchedId = 'system-design';
+
+        if (!localStorage.getItem('student_os_active_roadmap_id')) {
+          setSelectedRoadmapId(matchedId);
+        }
+      }
+    }).catch(() => {});
   }, []);
 
-  const handleOpenQuiz = async (topic: string) => {
-    setIsQuizModalOpen(true);
-    setLoadingQuiz(true);
-    setSelectedAnswers({});
-    setQuizResult(null);
-    try {
-      const q = await api.generateAssessment(topic);
-      setCurrentQuiz(q);
-    } finally {
-      setLoadingQuiz(false);
-    }
-  };
+  const currentRoadmap: TechRoadmap = ALL_ROADMAPS[selectedRoadmapId] || ALL_ROADMAPS['frontend'];
 
-  const handleSubmitQuiz = async () => {
-    if (!currentQuiz) return;
-    setSubmittingQuiz(true);
-    try {
-      const res = await api.submitAssessment(currentQuiz.topic, selectedAnswers);
-      setQuizResult(res);
-      if (res.passed) {
-        confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
-      }
-      if (res.roadmapAdapted) {
-        api.getRoadmap().then(setRoadmap);
-      }
-    } finally {
-      setSubmittingQuiz(false);
-    }
-  };
-
-  const currentModules: RoadmapModule[] = 
-    (roadmap?.modules && roadmap.modules.length > 0) 
-      ? roadmap.modules 
-      : mockRoadmap.modules;
-  const currentStages = 
-    (roadmap?.stages && roadmap.stages.length > 0) 
-      ? roadmap.stages 
-      : mockRoadmap.stages;
-
-  const selectedModule: RoadmapModule = 
-    currentModules.find(m => m.id === selectedModuleId) || currentModules[1] || currentModules[0];
-
-  const handleToggleSubTask = (taskId: string, subTaskId: string, currentCompleted: boolean) => {
-    api.markTaskProgress({ taskId, subTaskId, completed: !currentCompleted }).then(res => {
-      setRoadmap({ ...res.roadmap });
-      if (!currentCompleted) {
-        confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
-      }
+  // Calculate statistics
+  const { totalNodesCount, completedNodesCount } = useMemo(() => {
+    let total = 0;
+    let completed = 0;
+    currentRoadmap.stages.forEach(stage => {
+      stage.nodes.forEach(node => {
+        total++;
+        const status = nodeStatuses[node.id] || node.status;
+        if (status === 'completed') completed++;
+      });
     });
+    return { totalNodesCount: total, completedNodesCount: completed };
+  }, [currentRoadmap, nodeStatuses]);
+
+  // Handle roadmap selection
+  const handleSelectRoadmap = (newRoadmapId: string) => {
+    setSelectedRoadmapId(newRoadmapId);
+    localStorage.setItem('student_os_active_roadmap_id', newRoadmapId);
+    const chosen = ALL_ROADMAPS[newRoadmapId];
+    if (chosen) {
+      api.saveProfile({ goal: chosen.role, targetRole: chosen.role }).catch(() => {});
+      success('Active Goal Updated', `Switched path to ${chosen.title}.`);
+    }
   };
 
-  const handleMarkTaskComplete = (taskId: string, currentCompleted: boolean) => {
-    api.markTaskProgress({ taskId, completed: !currentCompleted }).then(res => {
-      setRoadmap({ ...res.roadmap });
-      if (!currentCompleted) {
-        confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
-      }
+  const handleToggleViewMode = (mode: 'graph' | 'syllabus') => {
+    setViewMode(mode);
+    localStorage.setItem('student_os_roadmap_view_mode', mode);
+  };
+
+  // Node selection for deep dive
+  const handleSelectNode = (node: RoadmapNodeData) => {
+    setSelectedNode(node);
+    setIsDrawerOpen(true);
+  };
+
+  // Node status change
+  const handleUpdateNodeStatus = (nodeId: string, newStatus: RoadmapNodeData['status']) => {
+    setNodeStatuses(prev => {
+      const updated = { ...prev, [nodeId]: newStatus };
+      localStorage.setItem('student_os_node_statuses', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (selectedNode && selectedNode.id === nodeId) {
+      setSelectedNode({ ...selectedNode, status: newStatus });
+    }
+
+    // Inform backend/localStorage
+    api.markTaskProgress({ taskId: nodeId, completed: newStatus === 'completed' }).catch(() => {});
+  };
+
+  // Quick toggle in syllabus view
+  const handleQuickToggleComplete = (nodeId: string, currentStatus: RoadmapNodeData['status']) => {
+    const nextStatus = currentStatus === 'completed' ? 'to_learn' : 'completed';
+    handleUpdateNodeStatus(nodeId, nextStatus);
+
+    if (nextStatus === 'completed') {
+      confetti({
+        particleCount: 45,
+        spread: 55,
+        origin: { y: 0.7 },
+        colors: ['#10B981', '#059669', '#34D399', '#D97706']
+      });
+    }
+  };
+
+  // Checklist toggle
+  const handleToggleChecklist = (nodeId: string, itemIdx: number) => {
+    const key = `${nodeId}-${itemIdx}`;
+    setCompletedChecklist(prev => {
+      const updated = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('student_os_node_checklist', JSON.stringify(updated));
+      return updated;
     });
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* 1. Page Header */}
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* 1. Header with Breadcrumbs & Senior Engineer Positioning */}
       <PageHeader
-        title="My Roadmap"
-        subtitle="Your personalized autonomous path to master skills and become an industry-ready AI Engineer."
-        badge="Active Sprint • Stage 2 of 7"
+        title="Interactive Developer Roadmaps"
+        subtitle={`Step-by-step interactive learning path designed by Senior Engineers. Dynamic, open, and verified with portfolio challenges.`}
+        badge={`${currentRoadmap.role} • 100% Unlocked`}
         badgeColor="indigo"
         icon={Map}
         breadcrumbs={[
           { label: 'Workspace' },
-          { label: 'My Roadmap' },
+          { label: 'Developer Roadmaps' },
+          { label: currentRoadmap.role }
         ]}
         actions={
-          <button 
-            onClick={() => info('Customizing Sprint', 'Adapting roadmap parameters based on recent progress.')}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-2xs btn-tactile"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
-            Customize Sprint
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsCustomizeModalOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-2xs btn-tactile cursor-pointer"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Customize Sprint</span>
+            </button>
+          </div>
         }
       />
 
-      {/* 2. Top Stepper (7 Stages) */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs overflow-x-auto">
-        <div className="flex items-center justify-between min-w-[760px] relative px-4">
-          {/* Connecting line */}
-          <div className="absolute top-4 left-8 right-8 h-0.5 bg-slate-200 -z-0" />
+      {/* 2. Nature & Senior Engineer Banner: The Essence of Senior Mastery */}
+      <div className="relative rounded-3xl p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-900 to-[#0A1124] text-white border border-slate-800 shadow-xl overflow-hidden">
+        {/* Subtle organic ambient glow */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
 
-          {currentStages.map((st) => {
-            const isCompleted = st.status === 'Completed';
-            const isInProgress = st.status === 'In Progress';
-            const isNext = st.status === 'Next';
-
-            return (
-              <div 
-                key={st.id || `st-${st.stageNumber}`} 
-                onClick={() => {
-                  const mod = currentModules.find(m => m.number === st.stageNumber);
-                  if (mod) setSelectedModuleId(mod.id);
-                }}
-                className="flex flex-col items-center relative z-10 text-center px-1 cursor-pointer group"
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition transform group-hover:scale-105 ${
-                    isCompleted
-                      ? 'bg-emerald-500 text-white shadow-xs'
-                      : isInProgress
-                      ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 shadow-md'
-                      : isNext
-                      ? 'bg-white border-2 border-indigo-500 text-indigo-600'
-                      : 'bg-white border-2 border-slate-300 text-slate-400'
-                  }`}
-                >
-                  {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : st.stageNumber}
-                </div>
-                <span className={`text-xs font-semibold mt-2 max-w-[95px] leading-tight ${
-                  isInProgress ? 'text-indigo-700' : isCompleted ? 'text-slate-800' : 'text-slate-500'
-                }`}>
-                  {st.title}
-                </span>
-                <span className={`text-[10px] mt-0.5 ${
-                  isCompleted ? 'text-emerald-600 font-medium' : isInProgress ? 'text-indigo-600 font-semibold' : 'text-slate-400'
-                }`}>
-                  {st.status}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Three-Column Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (3 cols): Roadmap Modules List */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
-            <div className="mb-3 px-1">
-              <h2 className="text-sm font-bold text-slate-900">Roadmap Modules</h2>
-              <p className="text-[11px] text-slate-500">7 stages • Personalized for you</p>
-            </div>
-
-            <div className="space-y-2">
-              {currentModules.map((mod) => {
-                const isSelected = mod.id === selectedModule.id;
-                const isCompleted = mod.percentage === 100;
-                const isInProgress = mod.percentage > 0 && mod.percentage < 100;
-
-                return (
-                  <div
-                    key={mod.id}
-                    onClick={() => setSelectedModuleId(mod.id)}
-                    className={`p-3 rounded-xl border transition cursor-pointer ${
-                      isSelected
-                        ? 'bg-indigo-50/50 border-indigo-300 shadow-2xs ring-1 ring-indigo-200'
-                        : 'bg-white hover:bg-slate-50 border-slate-200/70'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                          isCompleted
-                            ? 'bg-emerald-500 text-white'
-                            : isInProgress
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {mod.number}
-                        </span>
-                        <div>
-                          <h4 className={`text-xs font-bold leading-tight ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>
-                            {mod.title}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
-                            {mod.description}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition ${isSelected ? 'text-indigo-600 rotate-90' : 'text-slate-300'}`} />
-                    </div>
-
-                    <div className="mt-2.5">
-                      <div className="flex items-center justify-between text-[10px] mb-1">
-                        <span className={isCompleted ? 'text-emerald-600 font-semibold' : isInProgress ? 'text-indigo-600 font-semibold' : 'text-slate-400'}>
-                          {mod.completedTasks}/{mod.totalTasks} completed
-                        </span>
-                        <span className="font-bold text-slate-600">{mod.percentage}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-1.5 rounded-full transition-all duration-300 ${
-                            isCompleted ? 'bg-emerald-500' : 'bg-indigo-600'
-                          }`}
-                          style={{ width: `${mod.percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Center Column (6 cols): Selected Module Detail */}
-        <div className="lg:col-span-6 space-y-4">
-          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-2xs">
-            {/* Module header */}
-            <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-2xs border border-indigo-100">
-                  <Database className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-slate-900">{selectedModule.title}</h2>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                      selectedModule.percentage === 100
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                        : selectedModule.percentage > 0
-                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {selectedModule.percentage === 100 ? 'Completed' : selectedModule.percentage > 0 ? 'In Progress' : 'Upcoming'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">{selectedModule.description}</p>
-                </div>
-              </div>
-
-              <div className="text-right flex flex-col items-end gap-1.5">
-                <button
-                  onClick={() => handleOpenQuiz(selectedModule.title)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-2xs transition cursor-pointer"
-                >
-                  <Target className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Verify Skill Mastery</span>
-                </button>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  {selectedModule.completedTasks} / {selectedModule.totalTasks} completed ({selectedModule.percentage}%)
-                </span>
-                <div className="w-24 bg-slate-100 rounded-full h-1.5 overflow-hidden ml-auto">
-                  <div className="bg-indigo-600 h-1.5 rounded-full" style={{ width: `${selectedModule.percentage}%` }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Diagnostic Skill Assessment Modal (Blueprint §8 & §9) */}
-            {isQuizModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
-                <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900">
-                          Skill Diagnostic Assessment: {currentQuiz?.topic || 'Loading...'}
-                        </h3>
-                        <p className="text-xs text-slate-500">Gaps automatically adapt your active roadmap with remedial modules.</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => { setIsQuizModalOpen(false); setQuizResult(null); }}
-                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {loadingQuiz ? (
-                    <div className="py-6 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="w-24 h-4 rounded-md" />
-                        <Skeleton className="w-32 h-4 rounded-md" />
-                      </div>
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 space-y-3">
-                        <Skeleton className="w-full h-4 rounded-md" />
-                        <Skeleton className="w-3/4 h-4 rounded-md" />
-                        <div className="pt-2 space-y-2">
-                          <Skeleton className="w-full h-9 rounded-lg" />
-                          <Skeleton className="w-full h-9 rounded-lg" />
-                          <Skeleton className="w-full h-9 rounded-lg" />
-                        </div>
-                      </div>
-                      <p className="text-center text-xs font-medium text-slate-400">
-                        Generating diagnostic assessment from curriculum...
-                      </p>
-                    </div>
-                  ) : !quizResult ? (
-                    <div className="space-y-4">
-                      {currentQuiz?.questions?.map((q: any, idx: number) => (
-                        <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-xs font-bold text-slate-900">
-                              {idx + 1}. {q.question}
-                            </span>
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
-                              {q.concept}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1.5 pt-1">
-                            {q.options?.map((opt: string, optIdx: number) => (
-                              <label
-                                key={optIdx}
-                                onClick={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: optIdx }))}
-                                className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
-                                  selectedAnswers[q.id] === optIdx
-                                    ? 'bg-purple-50/80 border-purple-300 text-purple-950 font-medium'
-                                    : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={q.id}
-                                  checked={selectedAnswers[q.id] === optIdx}
-                                  onChange={() => {}}
-                                  className="text-purple-600 focus:ring-purple-500"
-                                />
-                                <span>{opt}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-
-                      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                        <button
-                          onClick={() => setIsQuizModalOpen(false)}
-                          className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSubmitQuiz}
-                          disabled={submittingQuiz || Object.keys(selectedAnswers).length === 0}
-                          className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs disabled:opacity-50"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>{submittingQuiz ? 'Evaluating Answers...' : 'Submit Assessment'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 animate-in fade-in">
-                      <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-                        quizResult.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
-                      }`}>
-                        <div>
-                          <span className={`text-[11px] font-bold block uppercase ${
-                            quizResult.passed ? 'text-emerald-700' : 'text-amber-700'
-                          }`}>
-                            Diagnostic Result
-                          </span>
-                          <h4 className="text-base font-extrabold text-slate-900">
-                            {quizResult.verdict}
-                          </h4>
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-2xl font-black ${
-                            quizResult.passed ? 'text-emerald-600' : 'text-amber-600'
-                          }`}>
-                            {quizResult.score}%
-                          </span>
-                          <span className="text-xs font-bold text-slate-500 block">
-                            {quizResult.correctCount} / {quizResult.totalQuestions} correct
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Adaptive Remediation Notice */}
-                      {quizResult.roadmapAdapted && (
-                        <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 space-y-1.5">
-                          <div className="flex items-center gap-1.5 font-bold text-indigo-950">
-                            <CheckCircle2 className="w-4 h-4 text-indigo-600" />
-                            <span>Adaptive Re-Planning Triggered!</span>
-                          </div>
-                          <p className="text-[11px] text-indigo-800">
-                            The AI Agent automatically appended a customized remediation module: <strong>{quizResult.remediationStage?.title}</strong> to your active roadmap to reinforce {quizResult.identifiedGaps?.join(', ')}.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Answer Explanations */}
-                      <div className="space-y-2">
-                        <span className="text-xs font-bold text-slate-800 block">Question Explanations:</span>
-                        {quizResult.detailedResults?.map((r: any, idx: number) => (
-                          <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-slate-900">Concept: {r.concept}</span>
-                              <span className={`inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-md text-[11px] ${
-                                r.isCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                              }`}>
-                                {r.isCorrect ? (
-                                  <>
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                    Correct
-                                  </>
-                                ) : (
-                                  <>
-                                    <X className="w-3 h-3 text-rose-600" />
-                                    Gap
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                            <p className="text-slate-600">{r.explanation}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                        <button
-                          onClick={() => { setIsQuizModalOpen(false); setQuizResult(null); }}
-                          className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition"
-                        >
-                          Back to Roadmap
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-1 pt-3 pb-4 border-b border-slate-100">
-              {[
-                { id: 'tasks', label: 'Tasks', count: selectedModule.tasks.length },
-                { id: 'projects', label: 'Projects', count: selectedModule.recommendedProject ? 1 : 0 },
-                { id: 'resources', label: 'Resources', count: selectedModule.additionalResources?.length || 0 },
-                { id: 'notes', label: 'Notes', count: undefined },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition ${
-                    activeTab === tab.id
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  {tab.label} {tab.count !== undefined && `(${tab.count})`}
-                </button>
-              ))}
-            </div>
-
-            {/* Tasks Tab Content */}
-            {activeTab === 'tasks' && (
-              <div className="space-y-3 pt-3">
-                {selectedModule.tasks.map((task) => {
-                  const isExpanded = expandedTaskId === task.id;
-
-                  return (
-                    <div
-                      key={task.id}
-                      className={`rounded-xl border transition ${
-                        isExpanded
-                          ? 'border-indigo-200 bg-indigo-50/20 shadow-2xs'
-                          : 'border-slate-200/70 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      {/* Task Header Row */}
-                      <div 
-                        onClick={() => setExpandedTaskId(isExpanded ? '' : task.id)}
-                        className="p-3.5 flex items-center justify-between gap-3 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMarkTaskComplete(task.id, task.completed);
-                            }}
-                            className="shrink-0 text-slate-400 hover:text-emerald-500 transition"
-                          >
-                            {task.completed ? (
-                              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                            ) : task.inProgress ? (
-                              <PlayCircle className="w-5 h-5 text-indigo-600 animate-pulse" />
-                            ) : (
-                              <Circle className="w-5 h-5 text-slate-300" />
-                            )}
-                          </button>
-                          
-                          <div className="truncate">
-                            <span className={`text-xs font-bold ${task.completed ? 'line-through text-slate-400' : 'text-slate-900'}`}>
-                              {task.title}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Badges & Expand icon */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-                            {task.type}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium hidden sm:inline-block">
-                            {task.level}
-                          </span>
-                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {task.estimatedHours}h
-                          </span>
-                          {task.inProgress && (
-                            <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                              In Progress
-                            </span>
-                          )}
-                          <ChevronDown className={`w-4 h-4 text-slate-400 transition ${isExpanded ? 'rotate-180 text-indigo-600' : ''}`} />
-                        </div>
-                      </div>
-
-                      {/* Expanded Task Details */}
-                      {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-indigo-100/60 space-y-3.5 text-xs">
-                          {task.description && (
-                            <p className="text-slate-600 leading-relaxed">
-                              {task.description}
-                            </p>
-                          )}
-
-                          {/* Sub-tasks checklist */}
-                          {task.subTasks && task.subTasks.length > 0 && (
-                            <div className="p-3 bg-white rounded-xl border border-slate-200/70 space-y-2">
-                              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700">
-                                <span>Sub-tasks ({task.subTasks.filter(s => s.completed).length} / {task.subTasks.length})</span>
-                              </div>
-                              <div className="space-y-1.5">
-                                {task.subTasks.map((sub) => (
-                                  <div
-                                    key={sub.id}
-                                    onClick={() => handleToggleSubTask(task.id, sub.id, sub.completed)}
-                                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer"
-                                  >
-                                    {sub.completed ? (
-                                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                                    ) : (
-                                      <Circle className="w-4 h-4 text-slate-300 shrink-0" />
-                                    )}
-                                    <span className={`${sub.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
-                                      {sub.title}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Estimated Time & Dependencies */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="p-2.5 rounded-xl bg-white border border-slate-200/70 flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                                <Clock className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-slate-400 font-medium">Estimated Time</p>
-                                <p className="text-xs font-bold text-slate-800">{task.estimatedHours} hours</p>
-                              </div>
-                            </div>
-
-                            <div className="p-2.5 rounded-xl bg-white border border-slate-200/70 flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                                <Layers className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-slate-400 font-medium">Dependencies</p>
-                                <p className="text-xs font-bold text-slate-800 truncate">
-                                  {task.dependencies?.join(', ') || 'None'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-2 pt-1">
-                            <button
-                              onClick={() => handleMarkTaskComplete(task.id, task.completed)}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition shadow-xs"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              {task.completed ? 'Mark as Incomplete' : 'Mark as Complete'}
-                            </button>
-
-                            <button 
-                              onClick={() => setActiveTab('resources')}
-                              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition"
-                            >
-                              View Resources ({task.resourcesCount || 3})
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Projects Tab */}
-            {activeTab === 'projects' && (
-              <div className="pt-3">
-                {selectedModule.recommendedProject ? (
-                  <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/20 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">{selectedModule.recommendedProject.title}</h4>
-                      <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        {selectedModule.recommendedProject.badge}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600">{selectedModule.recommendedProject.description}</p>
-                    <div className="pt-2 flex items-center gap-2">
-                      <button className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-                        Start Project
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500">No project associated with this module yet.</p>
-                )}
-              </div>
-            )}
-
-            {/* Resources Tab */}
-            {activeTab === 'resources' && (
-              <div className="space-y-2 pt-3">
-                {selectedModule.additionalResources?.map((res) => (
-                  <a
-                    key={res.id}
-                    href={res.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-between p-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/80 transition group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <PlayCircle className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition" />
-                      <span className="text-xs font-semibold text-slate-800 group-hover:text-indigo-600">{res.title}</span>
-                    </div>
-                    <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                      {res.duration || res.platform} <ExternalLink className="w-3 h-3" />
-                    </span>
-                  </a>
-                ))}
-              </div>
-            )}
-
-            {/* Notes Tab */}
-            {activeTab === 'notes' && (
-              <div className="space-y-3 pt-3">
-                <textarea
-                  rows={6}
-                  placeholder="Take personal notes on this module, key commands, or concepts to remember..."
-                  className="w-full text-xs text-slate-800 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:bg-white focus:border-indigo-400 transition"
-                  defaultValue={`• FastAPI uses Pydantic for request body validation and automatic OpenAPI schema generation.
-• Always use async def for IO-bound endpoints (like DB queries or LLM API calls).
-• Use Alembic for PostgreSQL migrations.`}
-                />
-                <button className="px-3.5 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
-                  Save Notes
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column (3 cols): Explanations & AI Insights */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Why this step? Card */}
-          <SpotlightCard className="p-5" spotlightColor="rgba(99, 102, 241, 0.12)">
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Cpu className="w-3.5 h-3.5" />
-              </div>
-              <h3 className="text-xs font-bold text-slate-900">Architectural Context</h3>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {selectedModule.whyThisStep || 'This module provides fundamental building blocks needed for subsequent milestones.'}
-            </p>
-          </SpotlightCard>
-
-          {/* AI Agent Suggestion Card */}
-          {selectedModule.aiSuggestion && (
-            <SpotlightCard className="p-5 space-y-3" spotlightColor="rgba(147, 51, 234, 0.18)">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                  <Bot className="w-3.5 h-3.5" />
-                </div>
-                <ShinyText text="AI Agent Recommendation" className="text-xs font-bold text-slate-900" />
-              </div>
-              <p className="text-xs text-slate-700 leading-relaxed">
-                {selectedModule.aiSuggestion.text}
-              </p>
-              <button
-                onClick={() => setExpandedTaskId(selectedModule.aiSuggestion?.nextTaskId || '')}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition shadow-xs cursor-pointer active:scale-95"
-              >
-                <span>Start Next Task</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </SpotlightCard>
-          )}
-
-          {/* Recommended Project Card */}
-          {selectedModule.recommendedProject && (
-            <SpotlightCard className="p-5 space-y-2" spotlightColor="rgba(16, 185, 129, 0.12)">
-              <div className="flex items-center gap-2">
-                <FolderGit2 className="w-4 h-4 text-purple-600" />
-                <h3 className="text-xs font-bold text-slate-900">Recommended Project</h3>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-800">{selectedModule.recommendedProject.title}</h4>
-                  <span className="text-[10px] text-emerald-600 font-medium">{selectedModule.recommendedProject.badge}</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                  {selectedModule.recommendedProject.description}
-                </p>
-              </div>
-            </SpotlightCard>
-          )}
-
-          {/* Additional Resources list */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-xs font-bold text-slate-900">Additional Resources</h3>
-              </div>
-              <span className="text-[11px] font-medium text-indigo-600 cursor-pointer hover:underline">
-                View All →
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="space-y-2 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="text-[11px] font-mono tracking-wider text-emerald-400 uppercase font-semibold">
+                Organic Engineering Mastery • Non-AI Hype
               </span>
             </div>
 
-            <div className="space-y-2">
-              {selectedModule.additionalResources?.map((res) => (
-                <a
-                  key={res.id}
-                  href={res.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 text-xs transition group"
-                >
-                  <span className="text-slate-700 group-hover:text-indigo-600 font-medium truncate max-w-[180px]">
-                    {res.title}
-                  </span>
-                  <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 shrink-0" />
-                </a>
-              ))}
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              Learn What Actually Matters in Production
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+              Unlike generic AI-generated checklists, this curriculum is grounded in real production engineering realities: system trade-offs, architectural gotchas, latency physics, and hands-on portfolio proof of work. Every single topic is unlocked and accessible.
+            </p>
+          </div>
+
+          {/* Quick Metrics Badge */}
+          <div className="flex items-center gap-3 shrink-0 bg-slate-800/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/80">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono text-slate-400">Roadmap Progress</div>
+              <div className="text-base font-bold text-white flex items-center gap-2">
+                <span>{completedNodesCount} / {totalNodesCount} Topics</span>
+                <span className="text-xs font-mono font-normal text-emerald-400">
+                  ({totalNodesCount > 0 ? Math.round((completedNodesCount / totalNodesCount) * 100) : 0}%)
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* 3. Goal & Role Switcher Bar */}
+      <RoadmapGoalSelector
+        currentRoadmapId={selectedRoadmapId}
+        onSelectRoadmap={handleSelectRoadmap}
+        viewMode={viewMode}
+        onToggleViewMode={handleToggleViewMode}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        completedCount={completedNodesCount}
+        totalCount={totalNodesCount}
+        onCustomizeSprint={() => setIsCustomizeModalOpen(true)}
+      />
+
+      {/* 4. Active View: Visual Graph (roadmap.sh style) vs Syllabus Checklist */}
+      {viewMode === 'graph' ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-slate-500 px-2">
+            <div className="flex items-center gap-2">
+              <Compass className="w-4 h-4 text-emerald-600" />
+              <span className="font-semibold text-slate-700">Interactive Visual Node Network</span>
+              <span className="text-slate-400 hidden sm:inline">• Click any topic node to explore senior mental models & challenges</span>
+            </div>
+            <span className="font-mono text-[11px] text-slate-400">
+              Showing {currentRoadmap.stages.length} milestones
+            </span>
+          </div>
+
+          <RoadmapGraphCanvas
+            roadmap={currentRoadmap}
+            onSelectNode={handleSelectNode}
+            selectedNodeId={selectedNode?.id || null}
+            nodeStatuses={nodeStatuses}
+            searchFilter={searchQuery}
+          />
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-slate-500 px-2">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-indigo-600" />
+              <span className="font-semibold text-slate-700">Hierarchical Syllabus & Checkpoints</span>
+            </div>
+            <span className="font-mono text-[11px] text-slate-400">
+              {completedNodesCount} of {totalNodesCount} complete
+            </span>
+          </div>
+
+          <RoadmapSyllabusView
+            roadmap={currentRoadmap}
+            onSelectNode={handleSelectNode}
+            selectedNodeId={selectedNode?.id || null}
+            nodeStatuses={nodeStatuses}
+            onQuickToggleComplete={handleQuickToggleComplete}
+            searchFilter={searchQuery}
+          />
+        </div>
+      )}
+
+      {/* 5. Senior Masterclass Deep-Dive Drawer */}
+      <RoadmapNodeDrawer
+        node={selectedNode}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onUpdateStatus={handleUpdateNodeStatus}
+        completedChecklist={completedChecklist}
+        onToggleChecklist={handleToggleChecklist}
+      />
+
+      {/* 6. Customize Sprint Pace Modal */}
+      <RoadmapCustomizeModal
+        isOpen={isCustomizeModalOpen}
+        onClose={() => setIsCustomizeModalOpen(false)}
+        currentRole={currentRoadmap.role}
+        onApplyCustomization={(settings) => {
+          info('Pace Calibrated', `Customized for ${settings.hoursPerDay}h/day at ${settings.pace} velocity.`);
+        }}
+      />
     </div>
   );
 };
+
+export default Roadmap;

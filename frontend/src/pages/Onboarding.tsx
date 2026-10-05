@@ -21,7 +21,8 @@ import {
   GraduationCap,
   ShieldCheck,
   Zap,
-  Play
+  Play,
+  Network
 } from 'lucide-react';
 import { api } from '../services/api';
 import confetti from 'canvas-confetti';
@@ -41,7 +42,7 @@ export const Onboarding: React.FC = () => {
   const [step, setStep] = useState<number>(1);
   
   // 1. Goal
-  const [selectedGoal, setSelectedGoal] = useState<string>('AI Engineer');
+  const [selectedGoal, setSelectedGoal] = useState<string>('Frontend Developer');
   
   // 2. Stage & Diagnostic Baseline
   const [currentStage, setCurrentStage] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
@@ -66,28 +67,36 @@ export const Onboarding: React.FC = () => {
 
   const goals = [
     {
-      id: 'AI Engineer',
-      title: 'AI Engineer',
-      desc: 'Build LLM apps, RAG pipelines, autonomous agents, and fine-tune models from first principles.',
-      icon: Cpu,
+      id: 'Frontend Developer',
+      title: 'Frontend Developer',
+      desc: 'Master semantic HTML, modern CSS architecture, React 19, TypeScript, and Core Web Vitals.',
+      icon: Globe,
       badge: 'High Demand',
-      skills: ['Python', 'FastAPI', 'PyTorch', 'Vector DBs', 'RAG', 'LangChain', 'Docker']
+      skills: ['HTML5', 'Modern CSS', 'JavaScript', 'TypeScript', 'React 19', 'Performance', 'Next.js']
+    },
+    {
+      id: 'Backend Developer',
+      title: 'Backend Developer',
+      desc: 'Master OS concurrency, PostgreSQL indexing, Redis caching, REST/gRPC APIs, and Kafka.',
+      icon: Database,
+      badge: 'Critical',
+      skills: ['Python', 'PostgreSQL', 'Redis', 'Docker', 'FastAPI', 'gRPC', 'Kafka']
     },
     {
       id: 'Web Developer',
       title: 'Full Stack Engineer',
       desc: 'Master React, Next.js, Node.js, relational databases, and high-concurrency cloud architecture.',
-      icon: Globe,
+      icon: Layers,
       badge: 'Evergreen',
       skills: ['TypeScript', 'React', 'Next.js', 'Node.js', 'PostgreSQL', 'TailwindCSS', 'Redis']
     },
     {
-      id: 'Data Scientist',
-      title: 'Data Scientist / ML',
-      desc: 'Explore feature engineering, statistical modeling, PyTorch pipelines, and predictive analytics.',
-      icon: Database,
-      badge: 'Analytical',
-      skills: ['Python', 'Pandas', 'Scikit-learn', 'PyTorch', 'SQL', 'Data Pipelines']
+      id: 'AI Engineer',
+      title: 'AI Engineer',
+      desc: 'Build LLM apps, RAG pipelines, autonomous agents, and fine-tune models from first principles.',
+      icon: Cpu,
+      badge: 'Top Tier',
+      skills: ['Python', 'FastAPI', 'PyTorch', 'Vector DBs', 'RAG', 'LangChain', 'Docker']
     },
     {
       id: 'DevOps Engineer',
@@ -96,6 +105,22 @@ export const Onboarding: React.FC = () => {
       icon: Layers,
       badge: 'Infrastructure',
       skills: ['Linux', 'Docker', 'Kubernetes', 'Terraform', 'CI/CD', 'AWS', 'Go']
+    },
+    {
+      id: 'Computer Science & DSA',
+      title: 'Computer Science & DSA',
+      desc: 'Master algorithms, Big-O complexity, graphs, dynamic programming, and technical interviews.',
+      icon: Terminal,
+      badge: 'Foundations',
+      skills: ['Data Structures', 'Algorithms', 'Big-O', 'Graphs', 'Dynamic Programming', 'C++ / Python']
+    },
+    {
+      id: 'System Design',
+      title: 'System Design & Distributed Systems',
+      desc: 'Design high-scale architectures: sharding, replication, CDN, message queues, and CAP theorem.',
+      icon: Network,
+      badge: 'Senior Level',
+      skills: ['Distributed Systems', 'Consistent Hashing', 'Sharding', 'Caching', 'Load Balancing']
     }
   ];
 
