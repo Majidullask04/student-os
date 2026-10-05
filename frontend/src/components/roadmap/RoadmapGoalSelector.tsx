@@ -16,7 +16,10 @@ import {
   Terminal, 
   Network, 
   Layout,
-  ExternalLink
+  Filter,
+  X,
+  Target,
+  Award
 } from 'lucide-react';
 import { ALL_ROADMAPS, TechRoadmap } from '../../data/roadmapsData';
 
@@ -27,6 +30,10 @@ interface RoadmapGoalSelectorProps {
   onToggleViewMode: (mode: 'graph' | 'syllabus') => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  difficultyFilter: string;
+  onDifficultyFilterChange: (diff: string) => void;
+  statusFilter: string;
+  onStatusFilterChange: (status: string) => void;
   completedCount: number;
   totalCount: number;
   onCustomizeSprint: () => void;
@@ -39,12 +46,14 @@ export const RoadmapGoalSelector: React.FC<RoadmapGoalSelectorProps> = ({
   onToggleViewMode,
   searchQuery,
   onSearchChange,
+  difficultyFilter,
+  onDifficultyFilterChange,
+  statusFilter,
+  onStatusFilterChange,
   completedCount,
   totalCount,
   onCustomizeSprint,
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
   const currentRoadmap: TechRoadmap = ALL_ROADMAPS[currentRoadmapId] || ALL_ROADMAPS['frontend'];
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -61,91 +70,106 @@ export const RoadmapGoalSelector: React.FC<RoadmapGoalSelectorProps> = ({
     }
   };
 
-  const CurrentIcon = getRoleIcon(currentRoadmap.icon);
+  const getReadinessTier = (pct: number) => {
+    if (pct >= 85) return { tier: 'Staff / Production Ready', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+    if (pct >= 55) return { tier: 'Advanced Production Engineer', color: 'text-indigo-700 bg-indigo-50 border-indigo-200' };
+    if (pct >= 25) return { tier: 'Core Systems Practitioner', color: 'text-blue-700 bg-blue-50 border-blue-200' };
+    return { tier: 'Foundations Apprentice', color: 'text-amber-700 bg-amber-50 border-amber-200' };
+  };
+
+  const readiness = getReadinessTier(percentage);
 
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-2xs space-y-5">
-      {/* Top Row: Active Goal Pill, Switcher Dropdown, and Global Stats */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Left: Role Selection & Dropdown */}
-        <div className="relative">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
-            <Compass className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Active Learning Path & Career Track</span>
+    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs space-y-5">
+      {/* 1. Track Selection: Instant 1-Click Horizontal Carousel */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-slate-500 font-medium">
+            <Compass className="w-4 h-4 text-indigo-600" />
+            <span className="font-semibold text-slate-700 uppercase tracking-wider text-[11px] font-mono">
+              Engineering Specialization Tracks
+            </span>
+            <span className="text-slate-400 hidden sm:inline">• 7 Professional Curricula</span>
           </div>
 
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all spring-hover specular-sweep text-left group cursor-pointer shadow-2xs"
-          >
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-              <CurrentIcon className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition">
-                  {currentRoadmap.title}
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold shadow-2xs">
-                  {currentRoadmap.industryDemand} Demand
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 line-clamp-1 max-w-sm">
-                {currentRoadmap.description}
-              </p>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-slate-400 ml-2 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-indigo-600' : ''}`} />
-          </button>
-
-          {/* Goal Selector Dropdown */}
-          {isDropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-40 animate-scale-in origin-top-left space-y-1">
-              <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Select Your Goal / Career Track
-              </div>
-
-              {Object.values(ALL_ROADMAPS).map((rm) => {
-                const Icon = getRoleIcon(rm.icon);
-                const isSelected = rm.id === currentRoadmapId;
-
-                return (
-                  <button
-                    key={rm.id}
-                    onClick={() => {
-                      onSelectRoadmap(rm.id);
-                      setIsDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition text-left cursor-pointer ${
-                      isSelected 
-                        ? 'bg-indigo-50 border border-indigo-200 text-indigo-900 font-bold' 
-                        : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold truncate">{rm.title}</div>
-                      <div className="text-[10px] text-slate-400">{rm.totalHours} hrs • {rm.stages.length} milestones</div>
-                    </div>
-                    {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />}
-                  </button>
-                );
-              })}
-
-              <div className="pt-2 border-t border-slate-100 px-3 py-1 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Inspired by roadmap.sh</span>
-                <span className="text-emerald-600 font-semibold">100% Unlocked</span>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${readiness.color}`}>
+              {readiness.tier}
+            </span>
+          </div>
         </div>
 
-        {/* Right: Progress Metric & Action Controls */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Completion Meter */}
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
-            <div className="relative w-10 h-10 flex items-center justify-center">
+        {/* Scrollable track selection pills */}
+        <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none snap-x">
+          {Object.values(ALL_ROADMAPS).map((rm) => {
+            const Icon = getRoleIcon(rm.icon);
+            const isSelected = rm.id === currentRoadmapId;
+
+            return (
+              <button
+                key={rm.id}
+                onClick={() => onSelectRoadmap(rm.id)}
+                className={`snap-start shrink-0 flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border transition-all duration-200 text-left cursor-pointer group ${
+                  isSelected
+                    ? 'bg-slate-900 border-slate-800 text-white shadow-md shadow-slate-900/10 ring-2 ring-indigo-500/30'
+                    : 'bg-slate-50/80 hover:bg-slate-100 border-slate-200/80 text-slate-700 hover:text-slate-900 hover:border-slate-300'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 border border-slate-200 shadow-2xs'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+
+                <div className="min-w-0 pr-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold whitespace-nowrap">
+                      {rm.role}
+                    </span>
+                    {isSelected && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    )}
+                  </div>
+                  <div className={`text-[10px] font-mono flex items-center gap-1.5 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                    <span>~{rm.totalHours}h</span>
+                    <span>•</span>
+                    <span>{rm.stages.length} phases</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Middle Row: Active Track Overview & Progress Metrics */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/20 to-slate-50 border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1 max-w-xl">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm sm:text-base font-bold text-slate-900">
+              {currentRoadmap.title}
+            </h3>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
+              {currentRoadmap.industryDemand} Demand
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+              {currentRoadmap.category}
+            </span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            {currentRoadmap.description}
+          </p>
+        </div>
+
+        {/* Progress & Quick Customize */}
+        <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
+          {/* Circular Meter */}
+          <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+            <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                 <path
                   className="text-slate-200"
@@ -164,55 +188,103 @@ export const RoadmapGoalSelector: React.FC<RoadmapGoalSelectorProps> = ({
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
               </svg>
-              <span className="absolute text-[11px] font-mono font-bold text-slate-800">
+              <span className="absolute text-[10px] font-mono font-bold text-slate-800">
                 {percentage}%
               </span>
             </div>
             <div>
               <div className="text-xs font-bold text-slate-900">
-                {completedCount} / {totalCount} Topics Mastered
+                {completedCount} / {totalCount} Mastered
               </div>
-              <div className="text-[10px] text-slate-500">
-                ~{currentRoadmap.totalHours} total learning hours
+              <div className="text-[10px] font-mono text-slate-400">
+                ~{currentRoadmap.totalHours} hrs curriculum
               </div>
             </div>
           </div>
 
-          {/* Customize Sprint Button */}
+          {/* Customize Button */}
           <button
             onClick={onCustomizeSprint}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs btn-tactile cursor-pointer"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs btn-tactile cursor-pointer"
+            title="Adjust daily study hours and target sprint deadline"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Customize Pace</span>
+            <span className="hidden sm:inline">Pace Settings</span>
           </button>
         </div>
       </div>
 
-      {/* Bottom Row: Search & View Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={`Filter topics in ${currentRoadmap.role}... (e.g. Docker, Hooks, RAG)`}
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
-            >
-              Clear
-            </button>
-          )}
+      {/* 3. Controls Bar: Search, Difficulty Chips, and View Mode Switcher */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2">
+        {/* Left: Search & Filter Chips */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={`Search topics in ${currentRoadmap.role}...`}
+              className="w-full pl-8 pr-7 py-2 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition placeholder:text-slate-400"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Difficulty Chips */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            {[
+              { id: 'all', label: 'All Levels' },
+              { id: 'Foundational', label: 'Foundational' },
+              { id: 'Core', label: 'Core' },
+              { id: 'Advanced', label: 'Advanced' }
+            ].map(d => (
+              <button
+                key={d.id}
+                onClick={() => onDifficultyFilterChange(d.id)}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition cursor-pointer whitespace-nowrap ${
+                  difficultyFilter === d.id
+                    ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status Filter Chips */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            {[
+              { id: 'all', label: 'All Status' },
+              { id: 'completed', label: 'Mastered' },
+              { id: 'in_progress', label: 'In Progress' },
+              { id: 'milestones', label: '★ Milestones' }
+            ].map(s => (
+              <button
+                key={s.id}
+                onClick={() => onStatusFilterChange(s.id)}
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition cursor-pointer whitespace-nowrap ${
+                  statusFilter === s.id
+                    ? 'bg-slate-900 text-white font-semibold shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* View Toggle (Interactive Graph vs Syllabus Mode) */}
-        <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200 text-xs font-semibold shrink-0">
+        {/* Right: View Mode Toggle */}
+        <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200/80 text-xs font-semibold shrink-0 self-start sm:self-auto">
           <button
             onClick={() => onToggleViewMode('graph')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition cursor-pointer ${
@@ -222,7 +294,7 @@ export const RoadmapGoalSelector: React.FC<RoadmapGoalSelectorProps> = ({
             }`}
           >
             <Map className="w-3.5 h-3.5" />
-            <span>Visual Graph (roadmap.sh)</span>
+            <span>Interactive Pathway</span>
           </button>
           <button
             onClick={() => onToggleViewMode('syllabus')}
@@ -233,7 +305,7 @@ export const RoadmapGoalSelector: React.FC<RoadmapGoalSelectorProps> = ({
             }`}
           >
             <ListOrdered className="w-3.5 h-3.5" />
-            <span>Syllabus & Checklist</span>
+            <span>Curriculum Matrix</span>
           </button>
         </div>
       </div>
